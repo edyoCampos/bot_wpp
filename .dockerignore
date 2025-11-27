@@ -1,0 +1,28 @@
+# Exclude VCS
+.git
+.gitignore
+
+# Python cache/artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.sqlite3
+
+# Virtual environments
+.venv/
+.env/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+
+# Local config
+.env
+*.local
+
+# Misc
+.DS_Store
+Thumbs.db

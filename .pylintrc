@@ -1,0 +1,31 @@
+[MASTER]
+init-hook='import os, sys; sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))'
+ignore=__pycache__
+
+[MESSAGES CONTROL]
+# Desabilitar falsos positivos e avisos de estilo não críticos
+disable=
+    not-callable,
+    no-member,                         # alembic.op e alembic.context são módulos dinâmicos
+    unused-import,                     # models precisam ser importados para Alembic
+    unused-argument,                   # current_user usado implicitamente pelo FastAPI
+    invalid-name,                      # arquivos de migração Alembic têm nomes gerados
+    wrong-import-order,                # ordem de imports não afeta funcionalidade
+    missing-module-docstring,          # docstrings opcionais em módulos pequenos
+    missing-class-docstring,           # Pydantic schemas são auto-documentados
+    line-too-long,                     # algumas queries SQL podem ser longas
+    raise-missing-from,                # re-raising simplificado é aceitável
+    logging-fstring-interpolation,     # f-strings são mais legíveis em logs
+    f-string-without-interpolation     # f-strings vazias são válidas
+
+[BASIC]
+# Nomes de variáveis comuns que são sempre aceitáveis
+good-names=db,id,op,sa,pk,fk,exc,i,j,k,_
+
+[FORMAT]
+max-line-length=120
+
+[DESIGN]
+max-args=10
+max-locals=20
+max-attributes=15

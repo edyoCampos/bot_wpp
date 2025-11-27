@@ -1,0 +1,30 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Project env/config
+.env
+*.log
+*.sqlite3
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+.env/
+
+# Editors/OS artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+sitecustomize.py
