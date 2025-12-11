@@ -27,13 +27,21 @@ class HealthService:
         now = datetime.utcnow()
         db_ok = False
         db_error: str | None = None
+        redis_ok = False
+        redis_error: str | None = None
         try:
             db_ok = self.health_repo.ping()
         except Exception as exc:  # pragma: no cover - integration moment
             db_ok = False
             db_error = str(exc)
 
-        status_str = "ok" if db_ok else "unhealthy"
+        try:
+            redis_ok = self.health_repo.check_redis_connection()
+        except Exception as exc:  # pragma: no cover - integration moment
+            redis_ok = False
+            redis_error = str(exc)
+
+        status_str = "ok" if db_ok and redis_ok else "unhealthy"
 
         # Se crítico (DB down) e alerts ativados, persistir alerta básico
         if not db_ok and getattr(settings, "SMTP_SENDER", None) is not None:
@@ -50,6 +58,9 @@ class HealthService:
 
         return HealthOut(
             status=status_str,
-            components={"database": {"ok": db_ok, "error": db_error}},
+            components={
+                "database": {"ok": db_ok, "error": db_error},
+                "redis": {"ok": redis_ok, "error": redis_error},
+            },
             timestamp=now,
         )
