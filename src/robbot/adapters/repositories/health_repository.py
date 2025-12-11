@@ -1,7 +1,7 @@
-from typing import Any
-
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from robbot.infra.redis.client import get_redis_client
 
 
 class HealthRepository:
@@ -21,3 +21,12 @@ class HealthRepository:
         # Usamos texto SQL simples compatível com Postgres
         result = self.db.execute(text("SELECT 1")).scalar_one_or_none()
         return result == 1
+
+    def ping_redis(self) -> bool:
+        """Verifica conectividade com o Redis usando ping."""
+        client = get_redis_client()
+        return bool(client.ping())
+
+    def check_redis_connection(self) -> bool:
+        """Alias semântico para compatibilidade com backlog/serviço."""
+        return self.ping_redis()
