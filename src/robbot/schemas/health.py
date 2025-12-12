@@ -18,6 +18,7 @@ class HealthOut(BaseModel):
 
     status: str
     components: Dict[str, Any]
+    active_sessions: int = 0
     timestamp: datetime
 
     model_config = ConfigDict(from_attributes=True)
