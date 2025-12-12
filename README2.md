@@ -1,6 +1,7 @@
 # SISTEMA DE ATENDIMENTO CLÍNICA GO
 
 ## OBJETIVO PRINCIPAL
+
 <p style="margin-left: 20px;">
 Criar um sistema de atendimento automático via WhatsApp que converta pessoas interessadas das campanhas publicitárias em agendamentos de consulta, organizando o fluxo de conversas e transferindo para a secretária quando necessário.
 </p>
@@ -8,6 +9,7 @@ Criar um sistema de atendimento automático via WhatsApp que converta pessoas in
 ## O QUE O SISTEMA FAZ
 
 ### CAPTAÇÃO E ORGANIZAÇÃO
+
 <div style="margin-left: 20px;">
 <ul>
   <li>Recebe mensagens de pessoas que clicam nos anúncios do Google e Instagram</li>
@@ -18,6 +20,7 @@ Criar um sistema de atendimento automático via WhatsApp que converta pessoas in
 </div>
 
 ### ATENDIMENTO AUTOMÁTICO INTELIGENTE
+
 <div style="margin-left: 20px;">
 <ul>
   <li>Responde automaticamente às perguntas mais comuns</li>
@@ -28,6 +31,7 @@ Criar um sistema de atendimento automático via WhatsApp que converta pessoas in
 </div>
 
 ### GESTÃO HUMANA
+
 <div style="margin-left: 20px;">
 <ul>
   <li>Identifica quando a pessoa quer agendar uma consulta</li>
@@ -38,6 +42,7 @@ Criar um sistema de atendimento automático via WhatsApp que converta pessoas in
 </div>
 
 ### ACOMPANHAMENTO E MELHORIA
+
 <div style="margin-left: 20px%;">
 <ul>
   <li>Mostra em tempo real quantas pessoas estão sendo atendidas</li>
@@ -48,6 +53,7 @@ Criar um sistema de atendimento automático via WhatsApp que converta pessoas in
 </div>
 
 ## O QUE O SISTEMA NÃO FAZ
+
 <div style="margin-left: 20px;">
 <ul>
   <li>Não substitui completamente a secretária</li>
@@ -60,6 +66,7 @@ Criar um sistema de atendimento automático via WhatsApp que converta pessoas in
 ## BENEFÍCIOS ESPERADOS
 
 ### PARA OS INTERESSADOS
+
 <div style="margin-left: 20px;">
 <ul>
   <li>Resposta imediata a qualquer hora</li>
@@ -70,6 +77,7 @@ Criar um sistema de atendimento automático via WhatsApp que converta pessoas in
 </div>
 
 ### PARA A CLÍNICA
+
 <div style="margin-left: 20px;">
 <ul>
   <li>Atendimento simultâneo a múltiplas pessoas</li>
@@ -81,6 +89,7 @@ Criar um sistema de atendimento automático via WhatsApp que converta pessoas in
 </div>
 
 ## COMO FUNCIONA NA PRÁTICA
+
 <div style="margin-left: 20px;">
 <ol>
   <li>Pessoa vê anúncio e clica para falar no WhatsApp</li>
@@ -96,15 +105,19 @@ Criar um sistema de atendimento automático via WhatsApp que converta pessoas in
 ## USER STORIES PRINCIPAIS
 
 ### 1. Como Lead (Pessoa Interessada)
+
 "Quero obter informações sobre procedimentos estéticos da Clínica GO de forma rápida e natural via WhatsApp, e agendar uma consulta quando estiver pronto."
 
 ### 2. Como Secretária da Clínica
+
 "Quero gerenciar múltiplas conversas simultaneamente, recebendo apenas os leads prontos para agendamento, com todo o histórico da conversa disponível."
 
 ### 3. Como Gestor da Clínica
+
 "Quero acompanhar em tempo real a performance das campanhas ADS, taxas de conversão e eficiência do atendimento automatizado."
 
 ### 4. Como Administrador do Sistema
+
 "Quero configurar e ajustar scripts de atendimento, conteúdos multimídia e regras de negócio sem necessidade de intervenção técnica."
 
 ---
@@ -112,6 +125,7 @@ Criar um sistema de atendimento automático via WhatsApp que converta pessoas in
 # FLUXOS DETALHADOS POR USER STORY
 
 ## FLUXO 1: Lead Obtém Informações e Agenda
+
 ```mermaid
 journey
     title Fluxo do Lead: Informação → Agendamento
@@ -128,9 +142,11 @@ journey
       Fornece disponibilidade: 5: Lead
       Confirma agendamento: 5: Lead
       Recebe confirmação: 4: Sistema
-FLUXO 2: Secretária Gerencia Conversas
-mermaid
-Copiar código
+```
+
+## FLUXO 2: Secretária Gerencia Conversas
+
+```mermaid
 journey
     title Fluxo da Secretária: Gestão Eficiente
     section Monitoramento
@@ -145,9 +161,11 @@ journey
       Confirma dados do lead: 5: Secretária
       Finaliza agendamento: 5: Secretária
       Sistema registra conversão: 4: Sistema
-FLUXO 3: Gestor Monitora Performance
-mermaid
-Copiar código
+```
+
+## FLUXO 3: Gestor Monitora Performance
+
+```mermaid
 journey
     title Fluxo do Gestor: Análise de Resultados
     section Métricas em Tempo Real
@@ -162,9 +180,11 @@ journey
       Identifica campanhas mais eficientes: 5: Gestor
       Ajusta orçamento de ADS: 5: Gestor
       Solicita ajustes nos scripts: 5: Gestor
-FLUXO 4: Administrador Configura Sistema
-mermaid
-Copiar código
+```
+
+## FLUXO 4: Administrador Configura Sistema
+
+```mermaid
 journey
     title Fluxo do Administrador: Configuração
     section Gestão de Conteúdo
@@ -178,3 +198,5 @@ journey
       Monitora saúde do sistema: 4: Sistema
       Ajusta parâmetros de performance: 5: Admin
       Gera backups de configuração: 5: Admin
+```
+---
