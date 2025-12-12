@@ -7,6 +7,8 @@ from robbot.adapters.controllers import (
     health_controller,
     message_controller,
     user_controller,
+    waha_controller,
+    webhook_controller,
 )
 
 api_router = APIRouter()
@@ -16,3 +18,6 @@ api_router.include_router(health_controller.router, prefix="", tags=["health"])
 api_router.include_router(user_controller.router, prefix="", tags=["users"])
 api_router.include_router(message_controller.router,
                           prefix="/messages", tags=["messages"])
+api_router.include_router(waha_controller.router, prefix="")
+api_router.include_router(webhook_controller.router,
+                          prefix="", tags=["Webhooks"])
