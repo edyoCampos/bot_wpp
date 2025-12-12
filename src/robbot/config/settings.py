@@ -40,6 +40,23 @@ class Settings(BaseSettings):
     WAHA_WEBHOOK_URL: str = Field(
         "http://api:3333/api/v1/webhooks/waha", env="WAHA_WEBHOOK_URL"
     )
+    WAHA_WEBHOOK_SECRET: str | None = Field(
+        None, env="WAHA_WEBHOOK_SECRET", description="Secret for webhook validation"
+    )
+
+    # Anti-ban settings (WhatsApp best practices)
+    WAHA_ANTI_BAN_ENABLED: bool = Field(
+        True, env="WAHA_ANTI_BAN_ENABLED", description="Enable anti-ban delays"
+    )
+    WAHA_MIN_DELAY_SECONDS: int = Field(
+        30, env="WAHA_MIN_DELAY_SECONDS", description="Min delay before sending (30-60s recommended)"
+    )
+    WAHA_MAX_DELAY_SECONDS: int = Field(
+        60, env="WAHA_MAX_DELAY_SECONDS", description="Max delay before sending"
+    )
+    WAHA_MESSAGES_PER_HOUR: int = Field(
+        20, env="WAHA_MESSAGES_PER_HOUR", description="Max messages per hour (conservative limit)"
+    )
 
     # ChromaDB (persistência vetorial)
     CHROMA_PERSIST_DIR: str = Field("./data/chroma", env="CHROMA_PERSIST_DIR")
