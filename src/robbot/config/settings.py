@@ -64,6 +64,29 @@ class Settings(BaseSettings):
         "conversations", env="CHROMA_COLLECTION_NAME"
     )
 
+    # Redis Queue (RQ) - Processamento assíncrono
+    RQ_DEFAULT_RESULT_TTL: int = Field(
+        500, env="RQ_DEFAULT_RESULT_TTL", description="TTL padrão para resultados de jobs (segundos)"
+    )
+    RQ_DEFAULT_FAILURE_TTL: int = Field(
+        86400, env="RQ_DEFAULT_FAILURE_TTL", description="TTL para jobs falhados (86400 = 24h)"
+    )
+    RQ_JOB_TIMEOUT_MESSAGE: int = Field(
+        10, env="RQ_JOB_TIMEOUT_MESSAGE", description="Timeout para jobs de mensagens (segundos)"
+    )
+    RQ_JOB_TIMEOUT_AI: int = Field(
+        60, env="RQ_JOB_TIMEOUT_AI", description="Timeout para jobs de IA (segundos)"
+    )
+    RQ_JOB_TIMEOUT_ESCALATION: int = Field(
+        30, env="RQ_JOB_TIMEOUT_ESCALATION", description="Timeout para jobs de escalação (segundos)"
+    )
+    RQ_MAX_RETRIES: int = Field(
+        3, env="RQ_MAX_RETRIES", description="Número máximo de tentativas por job"
+    )
+    RQ_FAILED_QUEUE_NAME: str = Field(
+        "failed", env="RQ_FAILED_QUEUE_NAME", description="Nome da fila de jobs falhados (DLQ)"
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
