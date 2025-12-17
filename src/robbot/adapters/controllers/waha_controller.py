@@ -45,7 +45,6 @@ from robbot.schemas.waha import (
     SetPresenceRequest,
 )
 from robbot.services.waha_service import WAHAService
-from robbot.services.whatsapp_message_service import WhatsAppMessageService
 
 router = APIRouter(prefix="/waha")
 
@@ -56,11 +55,6 @@ def _get_waha_service(db: Session = Depends(get_db)) -> WAHAService:
         session_repo=SessionRepository(db),
         waha_client=get_waha_client(),
     )
-
-
-def _get_message_service() -> WhatsAppMessageService:
-    """Dependency to create WhatsAppMessageService."""
-    return WhatsAppMessageService(waha_client=get_waha_client())
 
 
 # ============================================================================
@@ -250,7 +244,7 @@ async def logout_session(
 )
 async def send_text_message(
     data: SendTextRequest,
-    service: WhatsAppMessageService = Depends(_get_message_service),
+    service: WAHAService = Depends(_get_waha_service),
 ):
     """Send text message with anti-ban delays.
 
@@ -274,7 +268,7 @@ async def send_text_message(
 )
 async def send_image_message(
     data: SendImageRequest,
-    service: WhatsAppMessageService = Depends(_get_message_service),
+    service: WAHAService = Depends(_get_waha_service),
 ):
     """Send image message with optional caption.
 
@@ -298,7 +292,7 @@ async def send_image_message(
 )
 async def send_file_message(
     data: SendFileRequest,
-    service: WhatsAppMessageService = Depends(_get_message_service),
+    service: WAHAService = Depends(_get_waha_service),
 ):
     """Send file/document message.
 
@@ -322,7 +316,7 @@ async def send_file_message(
 )
 async def send_location_message(
     data: SendLocationRequest,
-    service: WhatsAppMessageService = Depends(_get_message_service),
+    service: WAHAService = Depends(_get_waha_service),
 ):
     """Send location message.
 
@@ -413,7 +407,7 @@ async def send_video_message(
 async def mark_message_seen(
     chat_id: str,
     message_id: str,
-    service: WhatsAppMessageService = Depends(_get_message_service),
+    service: WAHAService = Depends(_get_waha_service),
 ):
     """Mark message as seen (read receipt).
 
