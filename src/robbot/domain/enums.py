@@ -44,3 +44,10 @@ class LLMProvider(str, Enum):
     GEMINI = "GEMINI"
     OPENAI = "OPENAI"
     ANTHROPIC = "ANTHROPIC"
+
+
+class InteractionType(str, Enum):
+    NOTE = "NOTE"
+    STATUS_CHANGE = "STATUS_CHANGE"
+    CALL = "CALL"
+    EMAIL = "EMAIL"
