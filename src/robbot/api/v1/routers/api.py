@@ -3,10 +3,17 @@
 from fastapi import APIRouter
 
 from robbot.adapters.controllers import (
+    ai_controller,
+    audit_controller,
     auth_controller,
+    conversation_controller,
     health_controller,
+    job_controller,
+    lead_controller,
     message_controller,
+    notification_controller,
     queue_controller,
+    tag_controller,
     user_controller,
     waha_controller,
     webhook_controller,
@@ -24,3 +31,10 @@ api_router.include_router(queue_controller.router,
 api_router.include_router(waha_controller.router, prefix="")
 api_router.include_router(webhook_controller.router,
                           prefix="", tags=["Webhooks"])
+api_router.include_router(ai_controller.router, prefix="", tags=["AI"])
+api_router.include_router(notification_controller.router, prefix="", tags=["Notifications"])
+api_router.include_router(conversation_controller.router, prefix="", tags=["Conversations"])
+api_router.include_router(lead_controller.router, prefix="", tags=["Leads"])
+api_router.include_router(tag_controller.router, prefix="", tags=["Tags"])
+api_router.include_router(job_controller.router, prefix="", tags=["Jobs"])
+api_router.include_router(audit_controller.router, prefix="", tags=["Audit"])
