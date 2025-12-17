@@ -126,3 +126,38 @@ def delete_message(
     """
     service = MessageService(db)
     return service.delete_message(message_id)
+
+
+@router.post("/{message_id}/generate-description")
+def generate_description(
+    message_id: UUID,
+    use_gemini_vision: bool = True,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Generate AI-assisted title, description, and tags for a message.
+    
+    Uses Google Gemini Vision for images/videos to automatically:
+    - Generate descriptive title (max 50 chars)
+    - Generate detailed description (100-200 words)
+    - Suggest relevant tags
+    
+    This helps admins quickly catalog media for use in playbooks.
+    
+    Query params:
+    - use_gemini_vision: Enable Gemini Vision analysis (default: true)
+    
+    Requires authentication.
+    """
+    from robbot.services.description_service import DescriptionService
+    
+    service = DescriptionService(db)
+    result = service.generate_description(str(message_id), use_gemini_vision)
+    
+    return {
+        "message_id": str(message_id),
+        "generated_title": result.get("generated_title"),
+        "generated_description": result.get("generated_description"),
+        "suggested_tags": result.get("suggested_tags"),
+    }
