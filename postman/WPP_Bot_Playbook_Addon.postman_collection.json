@@ -1,0 +1,425 @@
+{
+	"info": {
+		"_postman_id": "playbook-endpoints-addon",
+		"name": "WPP Bot API - Playbook System Addon",
+		"description": "Novos endpoints do sistema de playbooks.\n\n## 🎯 Funcionalidades\n\n- **Topics**: Gerenciamento de tópicos (categorias genéricas)\n- **Playbooks**: Criação e busca semântica de playbooks\n- **Playbook Steps**: Passos organizados de mensagens\n- **Message Descriptions**: Geração AI de descrições com Gemini Vision\n\n## 🚀 Como Usar\n\n1. Importe este arquivo no Postman (File > Import)\n2. Use o environment existente (WPP_Bot_API.postman_environment.json)\n3. Autentique com Auth > Login (do collection principal)\n4. Teste os novos endpoints\n\n## 📊 Fluxo Típico\n\n1. Criar Topic (categoria)\n2. Criar Messages (texto, imagem, vídeo, PDF)\n3. Gerar descrições AI para mensagens visuais\n4. Criar Playbook vinculado ao Topic\n5. Adicionar Steps ao Playbook (mensagens ordenadas)\n6. Buscar semanticamente playbooks\n7. LLM usa playbooks automaticamente durante conversas",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Topics",
+			"item": [
+				{
+					"name": "Create Topic",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Botox\",\n  \"description\": \"Procedimento de aplicação de toxina botulínica para redução de rugas e linhas de expressão\",\n  \"category\": \"procedimentos_esteticos\",\n  \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/topics",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "topics"]
+						},
+						"description": "Criar novo tópico (categoria genérica para organizar playbooks).\n\nExemplos de tópicos:\n- Botox\n- Preenchimento Labial\n- Clareamento Dental\n- Agendamento de Consultas\n- Dúvidas Frequentes"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Topic",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/topics/{{topic_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "topics", "{{topic_id}}"]
+						},
+						"description": "Buscar tópico por ID."
+					},
+					"response": []
+				},
+				{
+					"name": "List Topics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/topics?active_only=false&skip=0&limit=100",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "topics"],
+							"query": [
+								{
+									"key": "active_only",
+									"value": "false",
+									"description": "Filtrar apenas tópicos ativos"
+								},
+								{
+									"key": "skip",
+									"value": "0",
+									"description": "Offset para paginação"
+								},
+								{
+									"key": "limit",
+									"value": "100",
+									"description": "Limite de resultados"
+								}
+							]
+						},
+						"description": "Listar todos os tópicos com filtros opcionais."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Topic",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"description\": \"Procedimento minimamente invasivo de toxina botulínica\",\n  \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/topics/{{topic_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "topics", "{{topic_id}}"]
+						},
+						"description": "Atualizar campos do tópico. Apenas campos fornecidos serão alterados."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Topic",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/topics/{{topic_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "topics", "{{topic_id}}"]
+						},
+						"description": "Deletar tópico. CASCADE: Deleta todos os playbooks e steps associados."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Playbooks",
+			"item": [
+				{
+					"name": "Create Playbook",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"topic_id\": \"{{topic_id}}\",\n  \"name\": \"Botox - Fluxo Completo de Atendimento\",\n  \"description\": \"Sequência de mensagens para apresentar o procedimento de botox, incluindo explicação, fotos antes/depois, valores e agendamento\",\n  \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbooks",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbooks"]
+						},
+						"description": "Criar novo playbook.\n\n**Playbooks** são sequências organizadas de mensagens sobre um tópico específico.\n\nO playbook é automaticamente indexado no ChromaDB para busca semântica."
+					},
+					"response": []
+				},
+				{
+					"name": "Search Playbooks (RAG)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbooks/search?query=botox procedimento valor antes depois&top_k=3&active_only=true",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbooks", "search"],
+							"query": [
+								{
+									"key": "query",
+									"value": "botox procedimento valor antes depois",
+									"description": "Busca em linguagem natural"
+								},
+								{
+									"key": "top_k",
+									"value": "3",
+									"description": "Número de resultados (máx 10)"
+								},
+								{
+									"key": "active_only",
+									"value": "true",
+									"description": "Apenas playbooks ativos"
+								}
+							]
+						},
+						"description": "**Busca Semântica com RAG** (Retrieval Augmented Generation).\n\nUsa ChromaDB + embeddings para encontrar playbooks relevantes.\n\nExemplos de queries:\n- \"botox preço procedimento\"\n- \"clareamento dental informações\"\n- \"preenchimento labial antes depois fotos\"\n- \"agendar consulta avaliação\"\n\nRetorna playbooks ordenados por score de relevância (0-1)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Playbook",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbooks/{{playbook_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbooks", "{{playbook_id}}"]
+						},
+						"description": "Buscar playbook por ID."
+					},
+					"response": []
+				},
+				{
+					"name": "List Playbooks by Topic",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbooks/topic/{{topic_id}}?active_only=false",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbooks", "topic", "{{topic_id}}"],
+							"query": [
+								{
+									"key": "active_only",
+									"value": "false",
+									"description": "Filtrar apenas ativos"
+								}
+							]
+						},
+						"description": "Listar todos os playbooks de um tópico específico."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Playbook",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Botox - Fluxo Completo v2\",\n  \"description\": \"Fluxo atualizado com novos preços e fotos\",\n  \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbooks/{{playbook_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbooks", "{{playbook_id}}"]
+						},
+						"description": "Atualizar playbook.\n\n**IMPORTANTE**: Atualização reindexa automaticamente no ChromaDB."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Playbook",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbooks/{{playbook_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbooks", "{{playbook_id}}"]
+						},
+						"description": "Deletar playbook.\n\nCADERNO:\n- Deleta steps associados\n- Remove embedding do ChromaDB"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Playbook Steps",
+			"item": [
+				{
+					"name": "Add Step",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"playbook_id\": \"{{playbook_id}}\",\n  \"message_id\": \"{{message_id}}\",\n  \"step_order\": null,\n  \"context_hint\": \"Primeiro, enviar explicação sobre o que é botox e como funciona\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbook-steps",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbook-steps"]
+						},
+						"description": "Adicionar step ao playbook.\n\n**step_order**: Se null, é adicionado no final automaticamente.\n**context_hint**: Dica para o LLM sobre quando usar este step."
+					},
+					"response": []
+				},
+				{
+					"name": "List Playbook Steps",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbook-steps/playbook/{{playbook_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbook-steps", "playbook", "{{playbook_id}}"]
+						},
+						"description": "Listar todos os steps de um playbook, ordenados por step_order."
+					},
+					"response": []
+				},
+				{
+					"name": "List Steps with Details (for LLM)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbook-steps/playbook/{{playbook_id}}/details",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbook-steps", "playbook", "{{playbook_id}}", "details"]
+						},
+						"description": "Listar steps com TODOS os detalhes das mensagens.\n\n**Uso**: Endpoint otimizado para o LLM consumir.\n\nRetorna:\n- Step order e context_hint\n- Message type, title, description, tags\n- Message content (text, media URL, caption, etc.)\n\nO LLM usa isso para decidir qual mensagem enviar."
+					},
+					"response": []
+				},
+				{
+					"name": "Reorder Steps",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"step_id_order\": [\n    [\"step_id_1\", 1],\n    [\"step_id_2\", 2],\n    [\"step_id_3\", 3],\n    [\"step_id_4\", 4]\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbook-steps/reorder",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbook-steps", "reorder"]
+						},
+						"description": "Reordenar múltiplos steps de uma vez.\n\nUse para reorganizar a sequência de mensagens no playbook."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Step",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"step_order\": 5,\n  \"context_hint\": \"Enviar apenas se cliente perguntar especificamente sobre valores\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbook-steps/{{step_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbook-steps", "{{step_id}}"]
+						},
+						"description": "Atualizar step order ou context hint."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Step",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/playbook-steps/{{step_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "playbook-steps", "{{step_id}}"]
+						},
+						"description": "Deletar step.\n\nAutomaticamente reindexa o playbook no ChromaDB."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Message Descriptions (AI)",
+			"item": [
+				{
+					"name": "Generate AI Description",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/messages/{{message_id}}/generate-description?use_gemini_vision=true",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "messages", "{{message_id}}", "generate-description"],
+							"query": [
+								{
+									"key": "use_gemini_vision",
+									"value": "true",
+									"description": "Usar Gemini Vision para imagens/vídeos"
+								}
+							]
+						},
+						"description": "**Gerar descrição AI com Gemini Vision**.\n\nPara mensagens de:\n- **Imagem**: Analisa conteúdo visual\n- **Vídeo**: Analisa thumbnail/preview\n- **Texto**: Analisa conteúdo textual\n- **Documento**: Analisa nome e tipo\n\nRetorna:\n- `generated_title`: Título descritivo (máx 50 chars)\n- `generated_description`: Descrição detalhada (100-200 palavras)\n- `suggested_tags`: Tags relevantes (comma-separated)\n\n**Uso típico**:\n1. Admin faz upload de imagem\n2. Clica \"Gerar Descrição com AI\"\n3. Gemini Vision analisa\n4. Admin revisa e edita se necessário\n5. Salva mensagem com descrição\n\nIsso ajuda o LLM a entender o conteúdo das mensagens nos playbooks."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "topic_id",
+			"value": "paste-topic-uuid-here",
+			"type": "string"
+		},
+		{
+			"key": "playbook_id",
+			"value": "paste-playbook-uuid-here",
+			"type": "string"
+		},
+		{
+			"key": "message_id",
+			"value": "paste-message-uuid-here",
+			"type": "string"
+		},
+		{
+			"key": "step_id",
+			"value": "paste-step-uuid-here",
+			"type": "string"
+		}
+	]
+}
