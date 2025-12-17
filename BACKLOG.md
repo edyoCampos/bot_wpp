@@ -17,6 +17,19 @@
 - Migrations Alembic
 - Docker Compose (api, db, adminer, waha)
 - Logging e tratamento de exceções
+- **Sistema Playbooks:** Topics, Playbooks, RAG ChromaDB, Gemini Tools integrados
+- **Sistema de Transcrição:** Faster-Whisper local (PT-BR, **ZERO CUSTO**)
+- **Sistema de Análise Visual:** BLIP-2 (Salesforce) open source (**ZERO CUSTO**)
+- **Localização da Clínica GO:** Configurada + Função de envio via WAHA
+  - Endereço: Av. São Miguel, 1000 - sala 102 - Centro, Dois Irmãos/RS
+  - Função: `send_clinic_location_via_waha(chat_id)` → envia pin no WhatsApp
+- **Processamento Automático de Mídia (100% GRATUITO):**
+  - Voice: Transcrição automática com Faster-Whisper (2 fluxos: webhook + API)
+  - Video: Transcrição de áudio + metadata
+  - **Image: Análise visual com BLIP-2** (~2-5s CPU, qualidade alta)
+  - Document: Metadata baseado em filename/caption
+  - Migration 0bba1bb7bf02: Campos `transcription`, `audio_url`, `has_audio`
+  - Campos já existentes: `title`, `description`, `tags`
 
 ### 🔄 Em Desenvolvimento
 
