@@ -10,6 +10,7 @@ from rq import Queue, Worker
 from rq.job import Job
 
 from robbot.config.settings import settings
+from robbot.core.custom_exceptions import QueueError
 from robbot.infra.redis.client import get_redis_client
 
 logger = logging.getLogger(__name__)
@@ -147,12 +148,16 @@ class RQQueueManager:
                 workers = Worker.all(connection=self.redis_client)
                 workers_on_queue = [w for w in workers if queue.name in [q.name for q in w.queues]]
                 
+                # Get failed jobs using registry instead of failed_job_ids
+                from rq.registry import FailedJobRegistry
+                failed_registry = FailedJobRegistry(queue=queue, connection=self.redis_client)
+                
                 stats[name] = {
                     "job_count": count,
                     "worker_count": len(workers_on_queue),
-                    "failed_count": len(queue.failed_job_ids),
+                    "failed_count": len(failed_registry),
                 }
-            except Exception as e:
+            except (QueueError, ValueError) as e:
                 logger.error(f"Erro ao obter stats da fila '{name}': {e}")
                 stats[name] = {"error": str(e)}
         
@@ -177,12 +182,11 @@ class RQQueueManager:
                 "queue_escalation": bool(self.queue_escalation),
                 "queue_failed": bool(self.queue_failed),
             }
+        except QueueError:
+            raise
         except Exception as e:
             logger.error(f"Health check falhou: {e}")
-            return {
-                "redis": False,
-                "error": str(e),
-            }
+            raise QueueError(f"Health check failed: {e}")
 
 
 # Singleton global
