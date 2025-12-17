@@ -40,9 +40,7 @@ class Settings(BaseSettings):
     WAHA_WEBHOOK_URL: str = Field(
         "http://api:3333/api/v1/webhooks/waha", env="WAHA_WEBHOOK_URL"
     )
-    WAHA_WEBHOOK_SECRET: str | None = Field(
-        None, env="WAHA_WEBHOOK_SECRET", description="Secret for webhook validation"
-    )
+
 
     # Anti-ban settings (WhatsApp best practices)
     WAHA_ANTI_BAN_ENABLED: bool = Field(
