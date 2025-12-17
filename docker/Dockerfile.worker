@@ -1,0 +1,48 @@
+# ============================================================================
+# Dockerfile para RQ Worker (processamento assíncrono)
+# ============================================================================
+# Reutiliza a imagem da API para manter dependências sincronizadas
+# Diferença: CMD executa worker em vez de servidor HTTP
+
+FROM python:3.11-slim
+
+# Metadados
+LABEL maintainer="edyoCampos"
+LABEL description="RQ Worker for bot_wpp - Background job processing"
+
+# Variáveis de ambiente
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app/src \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Instalar dependências do sistema
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Criar diretório de trabalho
+WORKDIR /app
+
+# Copiar arquivos de dependências primeiro (cache layer)
+COPY pyproject.toml ./
+
+# Instalar UV e dependências Python
+RUN pip install uv && \
+    uv pip install --system fastapi uvicorn[standard] sqlalchemy psycopg2-binary alembic pydantic pydantic-settings \
+    python-jose[cryptography] passlib[bcrypt] python-multipart redis rq httpx langchain langchain-google-genai \
+    chromadb python-dotenv
+
+# Copiar código fonte
+COPY src/ ./src/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
+
+# Healthcheck (verifica se worker está processando)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "from robbot.infra.redis.client import get_redis_client; get_redis_client().ping()" || exit 1
+
+# Comando para iniciar worker
+# Processa filas: messages, ai, escalation
+CMD ["python", "-m", "robbot.workers.rq_worker"]
