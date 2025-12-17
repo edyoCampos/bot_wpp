@@ -32,7 +32,6 @@ class AuthService:
         existing = self.repo.get_by_email(payload.email)
         if existing:
             raise AuthException("User already exists")
-        # Validate and hash password
         security.validate_password_policy(payload.password)
         hashed = security.get_password_hash(payload.password)
         user = self.repo.create_user(payload, hashed_password=hashed)
@@ -73,7 +72,6 @@ class AuthService:
         """
         Revoke token (refresh or access) by persisting it to DB.
         """
-        # Persist revocation
         self.token_repo.revoke(token)
         logger.info(f"Token revoked successfully")
 
@@ -83,7 +81,6 @@ class AuthService:
         """
         user = self.repo.get_by_email(email)
         if not user:
-            # Do not leak whether email exists
             return
         token = security.create_token_for_subject(
             str(user.id), minutes=15, token_type="pw-reset")
@@ -103,7 +100,6 @@ class AuthService:
         user = self.repo.get_by_id(int(user_id))
         if not user:
             raise AuthException("User not found")
-        # apply minimal password policy
         security.validate_password_policy(new_password)
         user.hashed_password = security.get_password_hash(new_password)
         self.repo.update_user(user)
