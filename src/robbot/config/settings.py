@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = Field("gemini-1.5-flash", env="GEMINI_MODEL")
     GEMINI_MAX_TOKENS: int = Field(2048, env="GEMINI_MAX_TOKENS")
     GEMINI_TEMPERATURE: float = Field(0.7, env="GEMINI_TEMPERATURE")
+    
+    # OpenAI (Whisper for transcription)
+    OPENAI_API_KEY: str | None = Field(None, env="OPENAI_API_KEY")
+    WHISPER_MODEL: str = Field("whisper-1", env="WHISPER_MODEL")
 
     # WAHA (WhatsApp HTTP API)
     WAHA_URL: str = Field("http://waha:3000", env="WAHA_URL")
@@ -60,6 +64,19 @@ class Settings(BaseSettings):
     CHROMA_PERSIST_DIR: str = Field("./data/chroma", env="CHROMA_PERSIST_DIR")
     CHROMA_COLLECTION_NAME: str = Field(
         "conversations", env="CHROMA_COLLECTION_NAME"
+    )
+    
+    # Clínica GO - Localização Fixa
+    CLINIC_NAME: str = Field("Clínica GO", env="CLINIC_NAME")
+    CLINIC_ADDRESS: str = Field(
+        "Av. São Miguel, 1000 - sala 102 - Centro, Dois Irmãos - RS, 93950-000",
+        env="CLINIC_ADDRESS"
+    )
+    CLINIC_LATITUDE: float = Field(-29.5838212, env="CLINIC_LATITUDE")
+    CLINIC_LONGITUDE: float = Field(-51.0869905, env="CLINIC_LONGITUDE")
+    CLINIC_MAPS_URL: str = Field(
+        "https://www.google.com/maps/place/Av.+S%C3%A3o+Miguel,+1000+-+sala+102",
+        env="CLINIC_MAPS_URL"
     )
 
     # Redis Queue (RQ) - Processamento assíncrono
