@@ -29,7 +29,7 @@ class GeminiClient:
     - Logging de todas as interações
     """
 
-    def __init__(self):
+    def __init__(self, tools: Optional[list] = None):
         """Inicializar cliente Gemini com configurações do settings."""
         try:
             genai.configure(api_key=settings.GOOGLE_API_KEY)
@@ -39,12 +39,13 @@ class GeminiClient:
                 generation_config={
                     "temperature": settings.GEMINI_TEMPERATURE,
                     "max_output_tokens": settings.GEMINI_MAX_TOKENS,
-                }
+                },
+                tools=tools
             )
             
             logger.info(
                 f"✓ GeminiClient inicializado (model={settings.GEMINI_MODEL}, "
-                f"temp={settings.GEMINI_TEMPERATURE})"
+                f"temp={settings.GEMINI_TEMPERATURE}, tools={len(tools) if tools else 0})"
             )
         except Exception as e:
             logger.error(f"✗ Falha ao inicializar GeminiClient: {e}")
@@ -220,9 +221,12 @@ class GeminiClient:
 _gemini_client: Optional[GeminiClient] = None
 
 
-def get_gemini_client() -> GeminiClient:
+def get_gemini_client(tools: Optional[list] = None) -> GeminiClient:
     """
     Obter instância singleton do cliente Gemini.
+    
+    Args:
+        tools: Lista de tools para function calling (opcional)
     
     Returns:
         GeminiClient singleton
@@ -230,7 +234,7 @@ def get_gemini_client() -> GeminiClient:
     global _gemini_client
     
     if _gemini_client is None:
-        _gemini_client = GeminiClient()
+        _gemini_client = GeminiClient(tools=tools)
         logger.info("🎯 GeminiClient inicializado como singleton")
     
     return _gemini_client
