@@ -84,7 +84,11 @@ class MessageProcessingJob(BaseJob):
             return self._persist_outbound_message()
     
     def _process_inbound_message(self) -> dict[str, Any]:
-        """Processar mensagem inbound com ConversationOrchestrator."""
+        """
+        Processar mensagem inbound com ConversationOrchestrator.
+        
+        Detecta automaticamente áudio e transcreve antes de processar.
+        """
         from robbot.services.conversation_orchestrator import get_conversation_orchestrator
         
         try:
@@ -95,22 +99,56 @@ class MessageProcessingJob(BaseJob):
             phone = chat_id.split("@")[0] if "@" in chat_id else chat_id
             text = self.message_data.get("body", "")
             
+            # Detectar se é mensagem de áudio ou vídeo
+            has_audio = False
+            audio_url = None
+            has_video = False
+            video_url = None
+            message_type = self.message_data.get("type", "")
+            
+            if message_type in ["voice", "ptt", "audio"]:
+                has_audio = True
+                # WAHA fornece URL do áudio no campo media ou _data
+                audio_url = self.message_data.get("media", {}).get("url") or self.message_data.get("_data", {}).get("url")
+                
+                if not audio_url:
+                    logger.warning(f"⚠️ Mensagem de áudio sem URL (type={message_type})")
+                else:
+                    logger.info(f"🎤 Áudio detectado: {audio_url}")
+            
+            elif message_type == "video":
+                has_video = True
+                has_audio = True  # Vídeo também tem áudio para transcrever
+                video_url = self.message_data.get("media", {}).get("url") or self.message_data.get("_data", {}).get("url")
+                audio_url = video_url  # Mesmo URL (extrairemos áudio)
+                
+                if not video_url:
+                    logger.warning(f"⚠️ Mensagem de vídeo sem URL")
+                else:
+                    logger.info(f"🎥 Vídeo detectado: {video_url}")
+            
             # Processar com orchestrator (fluxo completo)
             # Isso vai:
             # 1. Criar/buscar conversa
-            # 2. Salvar mensagem
-            # 3. Buscar contexto ChromaDB
-            # 4. Detectar intenção
-            # 5. Gerar resposta
-            # 6. Atualizar score
-            # 7. Enviar via WAHA
-            # 8. Salvar resposta
+            # 2. Transcrever áudio/vídeo (se houver)
+            # 3. Gerar descrição visual de vídeo (se houver)
+            # 4. Salvar mensagem
+            # 5. Buscar contexto ChromaDB
+            # 6. Detectar intenção
+            # 7. Gerar resposta
+            # 8. Atualizar score
+            # 9. Enviar via WAHA
+            # 10. Salvar resposta
             import asyncio
             result = asyncio.run(orchestrator.process_inbound_message(
                 chat_id=chat_id,
                 phone_number=phone,
                 message_text=text,
                 session_name=self.message_data.get("session", "default"),
+                has_audio=has_audio,
+                audio_url=audio_url,
+                has_video=has_video,
+                video_url=video_url,
             ))
             
             logger.info(
