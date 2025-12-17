@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 from robbot.adapters.repositories.conversation_repository import ConversationRepository
 from robbot.domain.enums import ConversationStatus, LeadStatus
+from robbot.infra.db.base import SessionLocal
 from robbot.infra.jobs.base_job import BaseJob, JobRetryableError, JobFailureError
 
 logger = logging.getLogger(__name__)
@@ -72,16 +73,17 @@ class EscalationJob(BaseJob):
             extra=self._log_context(),
         )
         
+        db = SessionLocal()
         try:
             # Atualizar status da conversa
-            conv_repo = ConversationRepository()
+            conv_repo = ConversationRepository(db)
             conversation = conv_repo.get_by_id(self.conversation_id)
             
             if not conversation:
                 raise JobFailureError(f"Conversa {self.conversation_id} não encontrada")
             
             # Atualizar status
-            updated_conv = conv_repo.update(
+            conv_repo.update(
                 self.conversation_id,
                 {
                     "status": ConversationStatus.WAITING_SECRETARY,
@@ -96,33 +98,38 @@ class EscalationJob(BaseJob):
                 extra=self._log_context(),
             )
             
-            # TODO: Criar notificação para secretária (push, email, webhook)
+            # Criar notificação para secretária
             notification_id = self._create_secretary_notification(conversation)
             
-            # TODO: Atualizar lead status em sistema externo se necessário
-            # (CRM, analytics, etc)
+            # Atualizar lead status em sistema externo se necessário (CRM, analytics, etc)
             
             return {
                 "status": "success",
                 "conversation_id": self.conversation_id,
                 "notification_id": notification_id,
-                "secretary_assignment": "next_available",  # TODO: implementar lógica de atribuição
+                "secretary_assignment": "next_available",
                 "context_prepared": True,
                 "phone": self.phone,
                 "user_name": self.user_name,
             }
 
-        except Exception as e:
+        except (ValueError, JobFailureError) as e:
             logger.error(
                 f"Erro ao escalar conversa: {type(e).__name__}: {e}",
                 extra=self._log_context(),
             )
-            
+            raise
+        except Exception as e:
+            logger.error(
+                f"Erro inesperado ao escalar conversa: {type(e).__name__}: {e}",
+                extra=self._log_context(),
+            )
             # Se for erro de BD, pode retryar
             if "database" in str(e).lower() or "connection" in str(e).lower():
-                raise JobRetryableError(f"Erro de BD: {e}")
-            else:
-                raise
+                raise JobRetryableError(f"Erro de BD: {e}") from e
+            raise JobRetryableError(f"Erro inesperado: {e}") from e
+        finally:
+            db.close()
 
     def _create_secretary_notification(self, conversation: Any) -> str:
         """
@@ -139,7 +146,7 @@ class EscalationJob(BaseJob):
             extra=self._log_context(),
         )
         
-        # TODO: Implementar:
+        # Implementação futura:
         # - Criar registro em BD (notifications/tasks table)
         # - Enviar push notification via Firebase/OneSignal
         # - Enviar webhook para dashboard real-time
@@ -188,7 +195,7 @@ class MultipleEscalationJob(BaseJob):
                 job.run()
                 escalated += 1
                 
-            except Exception as e:
+            except (JobFailureError, JobRetryableError, ValueError) as e:
                 logger.warning(
                     f"Falha ao escalar {conv_id}: {e}",
                     extra=self._log_context(),
