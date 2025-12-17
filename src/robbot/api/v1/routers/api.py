@@ -12,8 +12,11 @@ from robbot.adapters.controllers import (
     lead_controller,
     message_controller,
     notification_controller,
+    playbook_controller,
+    playbook_step_controller,
     queue_controller,
     tag_controller,
+    topic_controller,
     user_controller,
     waha_controller,
     webhook_controller,
@@ -38,3 +41,6 @@ api_router.include_router(lead_controller.router, prefix="", tags=["Leads"])
 api_router.include_router(tag_controller.router, prefix="", tags=["Tags"])
 api_router.include_router(job_controller.router, prefix="", tags=["Jobs"])
 api_router.include_router(audit_controller.router, prefix="", tags=["Audit"])
+api_router.include_router(topic_controller.router, prefix="/topics", tags=["Topics"])
+api_router.include_router(playbook_controller.router, prefix="/playbooks", tags=["Playbooks"])
+api_router.include_router(playbook_step_controller.router, prefix="/playbook-steps", tags=["Playbook Steps"])
