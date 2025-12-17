@@ -1,6 +1,6 @@
 """Message service orchestrating repository and business logic."""
 
-from typing import Union
+from typing import Optional, Union
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -43,12 +43,63 @@ class MessageService:
         if isinstance(payload, MessageCreateMedia):
             if not payload.file.url:
                 raise ValueError("Media file URL is required")
+            
+            # Processar mídia automaticamente conforme tipo
+            transcription = None
+            title = None
+            description = None
+            tags = None
+            
+            # 1. VOICE: Transcrever áudio
+            if payload.type == "voice":
+                transcription = self._transcribe_audio(payload.file.url)
+            
+            # 2. VIDEO: Transcrever áudio + gerar metadata básico
+            elif payload.type == "video":
+                transcription = self._transcribe_audio(payload.file.url)
+                metadata = self._generate_description(
+                    payload.file.url,
+                    payload.file.filename, 
+                    payload.caption or "", 
+                    "video"
+                )
+                title = metadata.get("generated_title")
+                description = metadata.get("generated_description")
+                tags = metadata.get("suggested_tags")
+            
+            # 3. IMAGE: Analisar com BLIP-2 (open source, local, sem custo)
+            elif payload.type == "image":
+                metadata = self._generate_description(
+                    payload.file.url,
+                    payload.file.filename, 
+                    payload.caption or "", 
+                    "image"
+                )
+                title = metadata.get("generated_title")
+                description = metadata.get("generated_description")
+                tags = metadata.get("suggested_tags")
+            
+            # 4. DOCUMENT: Gerar metadata baseado em filename
+            elif payload.type == "document":
+                metadata = self._generate_file_description(
+                    payload.file.filename, 
+                    payload.caption or "", 
+                    "document"
+                )
+                title = metadata.get("generated_title")
+                description = metadata.get("generated_description")
+                tags = metadata.get("suggested_tags")
+            
             msg = self.repo.create_media(
                 msg_type=payload.type,
                 mimetype=payload.file.mimetype,
                 filename=payload.file.filename,
                 url=payload.file.url,
                 caption=payload.caption,
+                transcription=transcription,
+                title=title,
+                description=description,
+                tags=tags,
             )
             # Build response with file metadata
             media_obj = msg.media[0] if msg.media else None
@@ -137,6 +188,83 @@ class MessageService:
             )
 
         raise ValueError(f"Unknown message type: {msg.type}")
+
+    def _transcribe_audio(self, audio_url: str) -> Optional[str]:
+        """
+        Transcrever áudio usando Faster-Whisper local.
+        
+        Args:
+            audio_url: URL do arquivo de áudio
+            
+        Returns:
+            Texto transcrito ou None se falhar
+        """
+        try:
+            from robbot.services.transcription_service import TranscriptionService
+            transcriber = TranscriptionService()
+            transcription = transcriber.transcribe_audio_sync(audio_url, language="pt")
+            if transcription:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"✓ Áudio transcrito: {transcription[:100]}...")
+            return transcription
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"✗ Erro ao transcrever áudio: {e}")
+            return None
+    
+    def _generate_description(self, media_url: str, filename: str, caption: str, media_type: str) -> dict:
+        """
+        Gerar descrição de mídia usando BLIP-2 (imagens) ou metadata básico.
+        
+        Args:
+            media_url: URL do arquivo de mídia
+            filename: Nome do arquivo
+            caption: Legenda fornecida
+            media_type: Tipo de mídia (image, video)
+            
+        Returns:
+            Dict com title, description, tags ou vazio se falhar
+        """
+        try:
+            from robbot.services.description_service import DescriptionService
+            desc_service = DescriptionService(self.db)
+            
+            # Se é imagem, tentar usar BLIP-2 para análise visual
+            if media_type == "image" and media_url:
+                return desc_service._analyze_image_with_blip(media_url, caption)
+            
+            # Para vídeo ou se BLIP falhar, usar metadata básico
+            return desc_service._generate_file_metadata(filename, caption, media_type)
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"✗ Erro ao gerar descrição de {media_type}: {e}")
+            return {}
+    
+    def _generate_file_description(self, filename: str, caption: str, file_type: str) -> dict:
+        """
+        Gerar metadata de documento baseado em filename e caption.
+        
+        Args:
+            filename: Nome do arquivo
+            caption: Legenda do arquivo
+            file_type: Tipo do arquivo (document, voice)
+            
+        Returns:
+            Dict com title, description, tags
+        """
+        try:
+            from robbot.services.description_service import DescriptionService
+            desc_service = DescriptionService(self.db)
+            return desc_service._generate_file_metadata(filename, caption, file_type)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"✗ Erro ao gerar metadata de {file_type}: {e}")
+            return {}
 
     def list_messages(
         self,
