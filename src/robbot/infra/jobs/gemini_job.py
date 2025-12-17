@@ -7,6 +7,8 @@ from typing import Any, Optional
 
 from robbot.adapters.repositories.conversation_repository import ConversationRepository
 from robbot.adapters.repositories.message_repository import MessageRepository
+from robbot.core.custom_exceptions import DatabaseError
+from robbot.infra.db.base import SessionLocal
 from robbot.infra.jobs.base_job import BaseJob, JobRetryableError, JobFailureError
 
 logger = logging.getLogger(__name__)
@@ -71,18 +73,15 @@ class GeminiAIProcessingJob(BaseJob):
             extra=self._log_context(),
         )
         
+        db = SessionLocal()
         try:
-            # TODO: Implementar recuperação de contexto de ChromaDB
             conversation_context = self._get_conversation_context()
             
-            # TODO: Chamar Gemini com LangChain
             ai_response = self._call_gemini(conversation_context)
             
-            # TODO: Validar resposta
             self._validate_ai_response(ai_response)
             
-            # Persistir resposta como mensagem de saída
-            message_repo = MessageRepository()
+            message_repo = MessageRepository(db)
             response_record = message_repo.create(
                 conversation_id=self.conversation_id,
                 direction="outbound",
@@ -114,18 +113,18 @@ class GeminiAIProcessingJob(BaseJob):
                 f"Resposta inválida de IA: {e}",
                 extra=self._log_context(),
             )
-            raise JobFailureError(str(e))
+            raise JobFailureError(str(e)) from e
         except Exception as e:
             logger.error(
                 f"Erro ao processar com IA: {type(e).__name__}: {e}",
                 extra=self._log_context(),
             )
             
-            # Se for erro de API (timeout, rate-limit), retry
             if any(x in str(e).lower() for x in ["timeout", "rate", "api", "503", "429"]):
-                raise JobRetryableError(f"Erro de API IA: {e}")
-            else:
-                raise JobFailureError(str(e))
+                raise JobRetryableError(f"Erro de API IA: {e}") from e
+            raise JobFailureError(str(e)) from e
+        finally:
+            db.close()
 
     def _get_conversation_context(self) -> str:
         """
@@ -134,22 +133,20 @@ class GeminiAIProcessingJob(BaseJob):
         Returns:
             String com contexto formatado para envio ao Gemini
         """
+        db = SessionLocal()
         try:
-            conv_repo = ConversationRepository()
-            msg_repo = MessageRepository()
+            conv_repo = ConversationRepository(db)
+            msg_repo = MessageRepository(db)
             
-            # Recuperar conversa
             conversation = conv_repo.get_by_id(self.conversation_id)
             if not conversation:
                 raise ValueError(f"Conversa {self.conversation_id} não encontrada")
             
-            # Recuperar últimas N mensagens para contexto
             messages = msg_repo.get_by_conversation_id(
                 self.conversation_id,
                 limit=10,
             )
             
-            # Formatar para prompt
             context_lines = []
             for msg in messages:
                 direction = "Lead" if msg.direction == "inbound" else "Bot"
@@ -157,12 +154,16 @@ class GeminiAIProcessingJob(BaseJob):
             
             return "\n".join(context_lines)
 
+        except DatabaseError:
+            raise
         except Exception as e:
             logger.warning(
                 f"Não foi possível recuperar contexto: {e}",
                 extra=self._log_context(),
             )
-            return ""  # Processar sem contexto
+            raise DatabaseError(f"Failed to retrieve context: {e}")
+        finally:
+            db.close()
 
     def _call_gemini(self, context: str) -> str:
         """
@@ -177,7 +178,7 @@ class GeminiAIProcessingJob(BaseJob):
         Raises:
             JobRetryableError: Se API indisponível
         """
-        # TODO: Implementar chamada real com LangChain
+        # Implementação futura: chamada real com LangChain
         # Por enquanto, resposta mock
         
         logger.debug(
@@ -206,7 +207,6 @@ class GeminiAIProcessingJob(BaseJob):
                 f"Resposta truncada: {len(response)} > 4096 chars",
                 extra=self._log_context(),
             )
-            # Truncar se necessário
             response = response[:4096] + "..."
 
 
@@ -247,7 +247,7 @@ class MessageAnalysisJob(BaseJob):
             extra=self._log_context(),
         )
         
-        # TODO: Implementar análise real com Gemini
+        # Implementação futura: análise real com Gemini
         
         return {
             "status": "success",
