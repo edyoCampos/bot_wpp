@@ -6,6 +6,7 @@ import logging
 from typing import Any, Optional
 
 from robbot.adapters.repositories.message_repository import MessageRepository
+from robbot.infra.db.base import SessionLocal
 from robbot.infra.jobs.base_job import BaseJob, JobRetryableError
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ class MessageProcessingJob(BaseJob):
         Executar processamento da mensagem.
         
         Returns:
-            Dict com ID da mensagem persistida e próximas ações
+            Dict com ID da mensagem e resultado do processamento
             
         Raises:
             JobRetryableError: Se BD indisponível (aguardará retry)
@@ -75,9 +76,69 @@ class MessageProcessingJob(BaseJob):
             extra=self._log_context(),
         )
         
+        # Se for mensagem inbound, processar com orchestrator
+        if self.message_direction == "inbound":
+            return self._process_inbound_message()
+        else:
+            # Mensagens outbound apenas persistir (já foram enviadas)
+            return self._persist_outbound_message()
+    
+    def _process_inbound_message(self) -> dict[str, Any]:
+        """Processar mensagem inbound com ConversationOrchestrator."""
+        from robbot.services.conversation_orchestrator import get_conversation_orchestrator
+        
         try:
-            # Persistir mensagem
-            message_repo = MessageRepository()
+            orchestrator = get_conversation_orchestrator()
+            
+            # Extrair dados da mensagem
+            chat_id = self.message_data.get("from", "")
+            phone = chat_id.split("@")[0] if "@" in chat_id else chat_id
+            text = self.message_data.get("body", "")
+            
+            # Processar com orchestrator (fluxo completo)
+            # Isso vai:
+            # 1. Criar/buscar conversa
+            # 2. Salvar mensagem
+            # 3. Buscar contexto ChromaDB
+            # 4. Detectar intenção
+            # 5. Gerar resposta
+            # 6. Atualizar score
+            # 7. Enviar via WAHA
+            # 8. Salvar resposta
+            import asyncio
+            result = asyncio.run(orchestrator.process_inbound_message(
+                chat_id=chat_id,
+                phone_number=phone,
+                message_text=text,
+                session_name=self.message_data.get("session", "default"),
+            ))
+            
+            logger.info(
+                f"✓ Mensagem processada com orchestrator (conv_id={result['conversation_id']})",
+                extra=self._log_context(),
+            )
+            
+            return {
+                "status": "processed",
+                "conversation_id": result["conversation_id"],
+                "response_sent": result["response_sent"],
+                "intent": result["intent"],
+                "maturity_score": result["maturity_score"],
+            }
+            
+        except Exception as e:
+            logger.error(
+                f"✗ Erro ao processar com orchestrator: {e}",
+                extra=self._log_context(),
+                exc_info=True,
+            )
+            raise JobRetryableError(f"Failed to process message: {e}") from e
+    
+    def _persist_outbound_message(self) -> dict[str, Any]:
+        """Persistir mensagem outbound (apenas registro)."""
+        db = SessionLocal()
+        try:
+            message_repo = MessageRepository(db)
             
             message_record = message_repo.create(
                 conversation_id=self.conversation_id,
@@ -91,7 +152,7 @@ class MessageProcessingJob(BaseJob):
             )
             
             logger.info(
-                f"✓ Mensagem persistida: {message_record.id}",
+                f"✓ Mensagem outbound persistida: {message_record.id}",
                 extra=self._log_context(),
             )
             
@@ -113,6 +174,12 @@ class MessageProcessingJob(BaseJob):
                 "phone": self.message_data.get("phone"),
             }
 
+        except ValueError as e:
+            logger.error(
+                f"Erro de validação: {e}",
+                extra=self._log_context(),
+            )
+            raise
         except Exception as e:
             logger.error(
                 f"Erro ao processar mensagem: {type(e).__name__}: {e}",
@@ -121,9 +188,10 @@ class MessageProcessingJob(BaseJob):
             
             # Se for erro de conexão com BD, retry
             if "database" in str(e).lower() or "connection" in str(e).lower():
-                raise JobRetryableError(f"Erro de BD: {e}")
-            else:
-                raise
+                raise JobRetryableError(f"Erro de BD: {e}") from e
+            raise JobRetryableError(f"Erro inesperado: {e}") from e
+        finally:
+            db.close()
 
 
 class MessageBatchProcessingJob(BaseJob):
@@ -180,7 +248,7 @@ class MessageBatchProcessingJob(BaseJob):
                 job.run()
                 processed += 1
                 
-            except Exception as e:
+            except (ValueError, JobRetryableError) as e:
                 logger.warning(
                     f"Falha ao processar mensagem {idx + 1}: {e}",
                     extra=self._log_context(),
