@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import CheckConstraint, Column, DateTime, String, Text
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -26,6 +26,17 @@ class MessageModel(Base):
     )
     text = Column(Text, nullable=True)
     caption = Column(Text, nullable=True)
+    
+    # New fields for playbook system
+    title = Column(String(255), nullable=True, index=True)
+    description = Column(Text, nullable=True)  # For LLM to understand content
+    tags = Column(String(500), nullable=True, index=True)  # Comma-separated tags
+    
+    # Audio transcription fields (for voice messages)
+    has_audio = Column(Boolean, default=False, nullable=False, server_default='false')
+    audio_url = Column(String(500), nullable=True)  # URL to audio file
+    transcription = Column(Text, nullable=True)  # Transcribed text from audio
+    
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
