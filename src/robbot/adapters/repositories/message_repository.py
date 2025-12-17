@@ -25,10 +25,44 @@ class MessageRepository:
         return msg
 
     def create_media(
-        self, msg_type: str, mimetype: str, filename: str, url: str, caption: Optional[str]
+        self, 
+        msg_type: str, 
+        mimetype: str, 
+        filename: str, 
+        url: str, 
+        caption: Optional[str],
+        transcription: Optional[str] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[str] = None
     ) -> MessageModel:
-        """Create a media message with associated file metadata."""
-        msg = MessageModel(type=msg_type, caption=caption)
+        """
+        Criar mensagem de mídia com metadados do arquivo.
+        
+        Args:
+            msg_type: Tipo da mensagem (image, video, voice, document)
+            mimetype: MIME type do arquivo
+            filename: Nome do arquivo
+            url: URL do arquivo
+            caption: Legenda opcional
+            transcription: Transcrição de áudio (voice, video)
+            title: Título gerado automaticamente
+            description: Descrição gerada automaticamente
+            tags: Tags sugeridas automaticamente
+            
+        Returns:
+            MessageModel com mídia criada
+        """
+        msg = MessageModel(
+            type=msg_type, 
+            caption=caption,
+            has_audio=(msg_type in ["voice", "video"]),
+            audio_url=url if msg_type in ["voice", "video"] else None,
+            transcription=transcription,
+            title=title,
+            description=description,
+            tags=tags
+        )
         self.db.add(msg)
         self.db.flush()  # Get msg.id before creating media
 
