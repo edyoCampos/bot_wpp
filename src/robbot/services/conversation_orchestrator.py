@@ -26,6 +26,7 @@ from robbot.core.custom_exceptions import (
     JobError,
     VectorDBError,
 )
+from robbot.services.playbook_tools import PLAYBOOK_TOOLS_DECLARATIONS
 from robbot.adapters.repositories.conversation_message_repository import (
     ConversationMessageRepository
 )
@@ -69,12 +70,12 @@ class ConversationOrchestrator:
     """
 
     def __init__(self):
-        self.gemini_client = get_gemini_client()
+        self.gemini_client = get_gemini_client(tools=PLAYBOOK_TOOLS_DECLARATIONS)
         self.chroma_client = get_chroma_client()
         self.prompt_templates = get_prompt_templates()
         self.waha_client = WAHAClient()
         
-        logger.info("✓ ConversationOrchestrator inicializado")
+        logger.info("✓ ConversationOrchestrator inicializado com playbook tools")
 
     async def process_inbound_message(
         self,
@@ -82,27 +83,36 @@ class ConversationOrchestrator:
         phone_number: str,
         message_text: str,
         session_name: str = "default",
+        has_audio: bool = False,
+        audio_url: Optional[str] = None,
+        has_video: bool = False,
+        video_url: Optional[str] = None,
     ) -> dict[str, Any]:
         """
         Processar mensagem inbound e gerar resposta.
         
         FLUXO COMPLETO:
         1. Buscar ou criar conversa
-        2. Salvar mensagem inbound
-        3. Buscar contexto do ChromaDB
-        4. Detectar intenção
-        5. Gerar resposta com Gemini
-        6. Atualizar score de maturidade
-        7. Salvar contexto no ChromaDB
-        8. Enviar resposta via WAHA
-        9. Salvar mensagem outbound
-        10. Registrar interação
+        2. Transcrever áudio/vídeo e gerar descrição visual (se houver)
+        3. Salvar mensagem inbound
+        4. Buscar contexto do ChromaDB
+        5. Detectar intenção
+        6. Gerar resposta com Gemini
+        7. Atualizar score de maturidade
+        8. Salvar contexto no ChromaDB
+        9. Enviar resposta via WAHA
+        10. Salvar mensagem outbound
+        11. Registrar interação
         
         Args:
             chat_id: ID do chat
             phone_number: Número do telefone
             message_text: Texto da mensagem
             session_name: Nome da sessão WAHA
+            has_audio: Se mensagem tem áudio (voice)
+            audio_url: URL do arquivo de áudio
+            has_video: Se mensagem tem vídeo
+            video_url: URL do arquivo de vídeo
             
         Returns:
             Dict com resultado:
@@ -121,13 +131,55 @@ class ConversationOrchestrator:
         try:
             logger.info(
                 f"🔄 Processando mensagem inbound (chat_id={chat_id}, "
-                f"phone={phone_number}, length={len(message_text)})"
+                f"phone={phone_number}, length={len(message_text)}, "
+                f"has_audio={has_audio}, has_video={has_video})"
             )
             
             with get_sync_session() as session:
                 conversation = await self._get_or_create_conversation(
                     session, chat_id, phone_number
                 )
+                
+                # Processar mídia conforme tipo
+                transcription = None
+                video_description = None
+                
+                # Se é vídeo: transcrever áudio + descrever visual
+                if has_video and video_url:
+                    try:
+                        # 1. Transcrever áudio do vídeo
+                        from robbot.services.transcription_service import TranscriptionService
+                        transcriber = TranscriptionService()
+                        transcription = await transcriber.transcribe_audio(video_url, language="pt")
+                        
+                        if transcription:
+                            logger.info(f"✓ Áudio do vídeo transcrito: {transcription[:100]}...")
+                        
+                        # 2. Gerar descrição visual com Gemini Vision
+                        # TODO: Implementar descrição assíncrona
+                        # Por ora, apenas marcamos que há vídeo
+                        message_text = f"[Vídeo recebido]\nÁudio: {transcription or 'não transcrito'}"
+                        
+                    except Exception as e:
+                        logger.error(f"✗ Erro ao processar vídeo: {e}")
+                        message_text = "[Vídeo recebido - erro no processamento]"
+                
+                # Se é apenas áudio, transcrever
+                elif has_audio and audio_url:
+                    try:
+                        from robbot.services.transcription_service import TranscriptionService
+                        transcriber = TranscriptionService()
+                        transcription = await transcriber.transcribe_audio(audio_url, language="pt")
+                        
+                        if transcription:
+                            logger.info(f"✓ Áudio transcrito: {transcription[:100]}...")
+                            message_text = f"[Áudio transcrito]: {transcription}"
+                        else:
+                            logger.warning("⚠️ Transcrição retornou vazio")
+                            message_text = "[Áudio recebido - transcrição falhou]"
+                    except Exception as e:
+                        logger.error(f"✗ Erro ao transcrever áudio: {e}")
+                        message_text = "[Áudio recebido - erro na transcrição]"
                 
                 await self._save_inbound_message(
                     session, conversation.id, message_text
