@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from robbot.api.v1.dependencies import get_current_user, get_db
-from robbot.infra.db.models.user_model import UserModel
 from robbot.schemas.message import (
     DeletedResponse,
     MessageCreateLocation,
@@ -33,7 +32,7 @@ router = APIRouter()
 def create_message(
     payload: Union[MessageCreateText, MessageCreateMedia, MessageCreateLocation],
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Create a new message (text, media, or location).
@@ -57,7 +56,7 @@ def create_message(
 def get_message(
     message_id: UUID,
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Retrieve message by ID.
@@ -77,7 +76,7 @@ def get_message(
 )
 def list_messages(
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     List all messages.
@@ -98,7 +97,7 @@ def update_message(
     message_id: UUID,
     payload: Union[MessageUpdateText, MessageUpdateMedia, MessageUpdateLocation],
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Update message fields.
@@ -116,7 +115,7 @@ def update_message(
 def delete_message(
     message_id: UUID,
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Delete message.
