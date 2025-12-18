@@ -46,115 +46,130 @@
 
 ---
 
-## 🔄 **SLIDE 3: Como o Bot Realmente Pensa (70 segundos)**
+## 🔄 **SLIDE 3: Fluxo Completo - Lead Emagrecimento (60 segundos)**
 
-### Título: "ConversationOrchestrator - O Processo de Decisão"
+### Título: "Do Instagram ao Agendamento - Caso Real"
 
-**Cenário real:** Maria envia: *"Estou com dor no peito forte, vocês atendem urgência?"*
+**Cenário:** Juliana (32a) vê post sobre Mounjaro no Instagram e envia: *"Oi! Vi vocês no Insta. Já tentei mil dietas e nada funciona. Mounjaro resolve? Quanto custa?"*
 
 ---
 
-### **ETAPA 1: Análise de Contexto (2 segundos)**
-
-**O que acontece nos bastidores:**
+### **🟢 ETAPA 1: Bot Analisa (2s)**
 
 ```python
-1. WhatsApp recebe → WAHA captura → Sistema registra
-2. ConversationOrchestrator inicia processo
-3. Busca histórico: "Maria já falou antes?" 
-   → SIM: 2 conversas anteriores (contexto carregado)
+📱 Mensagem chega → Gemini + ChromaDB analisam em paralelo
+
+🧠 GEMINI:
+├─ Intenção: "Emagrecimento + Mounjaro"
+├─ Tom: "Frustração + esperança"
+├─ Urgência: NENHUMA
+└─ Decisão: BOT QUALIFICA ✅
+
+📚 CHROMADB:
+├─ Busca: "emagrecimento mounjaro dietas"
+├─ Match 94%: "Protocolo Emagrecimento"
+└─ Playbook selecionado
 ```
 
-**LangChain carrega memória:**
-- Maria tem 45 anos
-- Já perguntou sobre cardiologia antes
-- Última conversa: 3 dias atrás
+**Resultado:** Bot continua sozinho (não precisa humano)
 
 ---
 
-### **ETAPA 2: Detecção de Urgência - DUPLA VERIFICAÇÃO (3 segundos)**
+### **🟢 ETAPA 2: Bot Responde + Qualifica (3s)**
 
-**Sistema de 2 níveis:**
+```
+"Oi Juliana! 😊 Entendo sua frustração. Sim, 
+a Dra. trabalha com Mounjaro quando indicado!
 
-#### **Nível 1: Análise de Keywords (0.1s)**
+A consulta é R$ 600 e dura 1h-1h20:
+✅ Bioimpedância completa
+✅ Análise hormonal
+✅ Protocolo personalizado
+
+Me conta: peso, altura e se já fez exames?"
+```
+
 ```python
-Palavras detectadas: ["sangramento intenso", "10 dias", "dor"]
-Sistema: FLAG VERMELHO → is_urgent = TRUE
+Lead criado:
+├─ Score: 65/100 (quente)
+├─ Status: QUALIFICANDO
+└─ Origem: Instagram
 ```
 
-#### **Nível 2: Gemini AI confirma (2s)**
+---
+
+### **🟢 ETAPA 3: Lead Engaja (2s)**
+
+**Juliana:** *"1,65m, 85kg. Não fiz exames há 2 anos. Acho que tenho resistência à insulina."*
+
+**Bot qualifica:**
+```
+"Perfeito! IMC 31 (sobrepeso). Resistência à insulina 
+dificulta muito o emagrecimento - por isso protocolos 
+integrativos funcionam melhor.
+
+O Mounjaro atua na resistência + controle do apetite. 
+Mas só a Dra. pode indicar após avaliar. 
+
+Quer agendar? Tenho essa semana!"
+```
+
 ```python
-Gemini analisa tom emocional + contexto:
-"Paciente com sangramento prolongado (10 dias). 
-Sintoma ginecológico agudo. Demonstra desespero.
-RISCO: ALTO → Requer atendimento ginecológico IMEDIATO"
+├─ Score: 85/100 → QUALIFICADO
+├─ Dados: peso, altura, histórico
+└─ Pronto para conversão
 ```
-
-**DECISÃO:** 🚨 **ESCALAÇÃO URGENTE**
 
 ---
 
-### **ETAPA 3: Playbook Selection com RAG (1 segundo)**
+### **🟢 ETAPA 4: Conversão (1s)**
 
-**ChromaDB faz busca semântica:**
+**Juliana:** *"Sim! Que dia?"*
+
+**Bot:**
 ```
-Query: "sangramento intenso urgência ginecologia"
-↓
-ChromaDB busca em 20 playbooks
-↓
-TOP 3 resultados (por similaridade):
-1. 🏆 "Protocolo Urgência Ginecológica" (96% match)
-2. "Triagem Sintomas Críticos Mulher" (91% match)  
-3. "FAQ Emergências Ginecológicas" (78% match)
+"Ótimo! Temos:
+• Terça 10h30
+• Quinta 14h
+
+Qual prefere?"
 ```
 
-**Sistema escolhe Playbook #1 + aciona handoff**
+**Juliana:** *"Quinta 14h"*
+
+**Bot:**
+```
+"Agendado! ✅
+📅 Quinta, 14h - Dra. [Nome]
+💰 R$ 600 (particular)
+📍 [Endereço]
+
+Lembrete: traga exames se tiver 😊"
+```
 
 ---
 
-### **ETAPA 4: Ação Simultânea - Bot E Humano (Paralelo)**
-
-**O bot NÃO espera passivo. Ele age em 2 frentes:**
-
-#### **FRENTE A - Bot responde (tranquiliza):**
-```
-"Juliana, sangramento intenso por 10 dias precisa de 
-atenção médica urgente. Estou acionando a equipe AGORA. 
-A Dra. é ginecologista e vai poder te avaliar com prioridade. 
-Aguarde que já estão te ligando, ok?"
-```
-
-#### **FRENTE B - Sistema notifica (em paralelo):**
-```python
-NotificationService.create_urgent_notification(
-    user_id=secretária,
-    title="🚨 URGÊNCIA GINECOLÓGICA",
-    message="Juliana, 32a. Sangramento 10 dias + dor intensa.",
-    priority=CRITICAL
-)
-```
-
-**Secretária recebe:**
-- 🔔 Push notification no celular
-- 📧 Email de alerta
-- 💻 Pop-up no sistema
-
-**Tempo total:** 3 segundos da mensagem até notificação humana
-
----
-
-### **ETAPA 5: Scoring e Continuidade (Background)**
-
-Enquanto humano assume, bot registra:
+### **📊 RESULTADO FINAL:**
 
 ```python
 Lead Juliana:
-├─ maturity_score: 90/100 (urgência médica)
-├─ urgency_level: CRITICAL
-├─ handoff_reason: "Sangramento prolongado + sintoma agudo ginecológico"
-├─ next_action: "Aguardando atendimento humano urgente"
-└─ conversation_status: ACTIVE_WITH_HUMAN
+├─ Score: 100/100 → CONVERTIDO 🎉
+├─ Tempo: 2 minutos
+├─ Intervenção humana: 0%
+└─ Status: AGENDAMENTO_CONFIRMADO
 ```
+
+| Métrica | Valor |
+|---------|-------|
+| ⏱️ Tempo | 2min |
+| 🤖 Autonomia | 100% |
+| 💰 Conversão | SIM |
+| 👤 Secretária | Livre |
+
+**Por que funcionou?**
+- ✅ Caso simples (sem urgência)
+- ✅ Playbook completo (94% match)
+- ✅ Lead engajou e forneceu dados
 
 ---
 
