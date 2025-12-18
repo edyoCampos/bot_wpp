@@ -37,6 +37,13 @@ class Conversation:
     assigned_to_user_id: Optional[int] = None
     is_urgent: bool = False
     notes: Optional[str] = None
+    
+    # Campos de handoff bot→humano
+    assigned_to: Optional[str] = None  # UUID do user que assumiu
+    assigned_at: Optional[datetime] = None  # Quando foi atribuído
+    completed_at: Optional[datetime] = None  # Quando foi completado (agendado)
+    escalation_reason: Optional[str] = None  # Motivo da escalação
+    
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

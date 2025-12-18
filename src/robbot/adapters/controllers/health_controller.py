@@ -11,13 +11,13 @@ router = APIRouter()
 
 
 @router.get("/health", response_model=HealthOut)
-def health_check(response: Response, db: Session = Depends(get_db)):
+async def health_check(response: Response, db: Session = Depends(get_db)):
     """
     Endpoint de health check da API.
     Controller: apenas mapeia request -> chama service -> formata response.
     """
     service = HealthService(db)
-    result = service.get_health()
+    result = await service.get_health()
     overall_ok = all(
         component.get("ok") for component in result.components.values()
     )

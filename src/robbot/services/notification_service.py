@@ -1,63 +1,41 @@
 """
-Notification Service - Sistema de notificações in-app.
+Notification Service - In-app notification management.
 
-Este service gerencia notificações para secretárias sobre novos leads e mensagens.
+Business logic for creating and managing user notifications.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional
-from uuid import uuid4
+from typing import List
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text
-from sqlalchemy.orm import Mapped, Session, mapped_column
+from sqlalchemy.orm import Session
 
+from robbot.adapters.repositories.notification_repository import NotificationRepository
 from robbot.core.exceptions import NotFoundException
-from robbot.infra.db.base import Base
+from robbot.infra.db.models.notification_model import NotificationModel
 
 logger = logging.getLogger(__name__)
 
 
-# ===== MODEL =====
-
-class NotificationModel(Base):
-    """Model para notificações in-app."""
-
-    __tablename__ = "notifications"
-
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
-    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    type: Mapped[str] = mapped_column(
-        String(50), nullable=False, comment="Tipo: NEW_LEAD, NEW_MESSAGE, etc."
-    )
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    message: Mapped[str] = mapped_column(Text, nullable=False)
-    read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False, index=True
-    )
-
-    def __repr__(self) -> str:
-        return f"<NotificationModel(id='{self.id}', user_id={self.user_id}, read={self.read})>"
-
-
-# ===== SERVICE =====
-
 class NotificationService:
     """
-    Service para gerenciar notificações.
+    Service for managing in-app notifications.
     
-    Responsabilidades:
-    - Criar notificações
-    - Marcar como lida
-    - Listar notificações do usuário
+    Responsibilities:
+    - Create notifications for users
+    - Mark notifications as read
+    - List user notifications
+    - Send specialized notifications (new lead, urgent message, etc.)
     """
 
     def __init__(self, db: Session):
-        """Inicializar service com sessão do banco."""
+        """
+        Initialize service with database session.
+        
+        Args:
+            db: SQLAlchemy database session
+        """
         self.db = db
+        self.repo = NotificationRepository(db)
 
     def create_notification(
         self,
@@ -67,30 +45,26 @@ class NotificationService:
         message: str,
     ) -> NotificationModel:
         """
-        Criar nova notificação.
+        Create a new notification.
         
         Args:
-            user_id: ID do usuário destinatário
-            notification_type: Tipo da notificação (NEW_LEAD, NEW_MESSAGE, etc.)
-            title: Título da notificação
-            message: Mensagem detalhada
+            user_id: ID of the user to notify
+            notification_type: Type of notification (NEW_LEAD, NEW_MESSAGE, etc.)
+            title: Notification title
+            message: Detailed message content
             
         Returns:
-            Notificação criada
+            Created notification model
         """
-        notification = NotificationModel(
+        notification = self.repo.create(
             user_id=user_id,
-            type=notification_type,
+            notification_type=notification_type,
             title=title,
             message=message,
-            read=False,
         )
         
-        self.db.add(notification)
-        self.db.flush()
-        
         logger.info(
-            f"✓ Notificação criada (id={notification.id}, "
+            f"✓ Notification created (id={notification.id}, "
             f"user_id={user_id}, type={notification_type})"
         )
         
@@ -98,30 +72,23 @@ class NotificationService:
 
     def mark_as_read(self, notification_id: str) -> NotificationModel:
         """
-        Marcar notificação como lida.
+        Mark notification as read.
         
         Args:
-            notification_id: ID da notificação
+            notification_id: UUID of the notification
             
         Returns:
-            Notificação atualizada
+            Updated notification model
             
         Raises:
-            NotFoundException: Se notificação não existir
+            NotFoundException: If notification does not exist
         """
-        notification = (
-            self.db.query(NotificationModel)
-            .filter_by(id=notification_id)
-            .first()
-        )
+        notification = self.repo.mark_as_read(notification_id)
         
         if not notification:
             raise NotFoundException(f"Notification {notification_id} not found")
         
-        notification.read = True
-        self.db.flush()
-        
-        logger.info(f"✓ Notificação marcada como lida (id={notification_id})")
+        logger.info(f"✓ Notification marked as read (id={notification_id})")
         
         return notification
 
@@ -130,32 +97,26 @@ class NotificationService:
         user_id: int,
         unread_only: bool = False,
         limit: int = 50,
-    ) -> list[NotificationModel]:
+    ) -> List[NotificationModel]:
         """
-        Obter notificações do usuário.
+        Get notifications for a user.
         
         Args:
-            user_id: ID do usuário
-            unread_only: Retornar apenas não lidas
-            limit: Número máximo de resultados
+            user_id: ID of the user
+            unread_only: Return only unread notifications
+            limit: Maximum number of results
             
         Returns:
-            Lista de notificações
+            List of notification models ordered by created_at desc
         """
-        query = self.db.query(NotificationModel).filter_by(user_id=user_id)
-        
-        if unread_only:
-            query = query.filter_by(read=False)
-        
-        notifications = (
-            query
-            .order_by(NotificationModel.created_at.desc())
-            .limit(limit)
-            .all()
+        notifications = self.repo.get_by_user(
+            user_id=user_id,
+            unread_only=unread_only,
+            limit=limit,
         )
         
         logger.info(
-            f"✓ Notificações obtidas (user_id={user_id}, "
+            f"✓ Notifications retrieved (user_id={user_id}, "
             f"count={len(notifications)}, unread_only={unread_only})"
         )
         
@@ -163,21 +124,15 @@ class NotificationService:
 
     def count_unread(self, user_id: int) -> int:
         """
-        Contar notificações não lidas.
+        Count unread notifications for a user.
         
         Args:
-            user_id: ID do usuário
+            user_id: ID of the user
             
         Returns:
-            Número de notificações não lidas
+            Count of unread notifications
         """
-        count = (
-            self.db.query(NotificationModel)
-            .filter_by(user_id=user_id, read=False)
-            .count()
-        )
-        
-        return count
+        return self.repo.count_unread(user_id)
 
     def notify_new_lead(
         self,
@@ -186,21 +141,21 @@ class NotificationService:
         lead_name: str,
     ) -> NotificationModel:
         """
-        Notificar sobre novo lead atribuído.
+        Notify user about new lead assignment.
         
         Args:
-            user_id: ID da secretária
-            lead_phone: Telefone do lead
-            lead_name: Nome do lead
+            user_id: ID of the secretary/agent
+            lead_phone: Lead's phone number
+            lead_name: Lead's name
             
         Returns:
-            Notificação criada
+            Created notification model
         """
         return self.create_notification(
             user_id=user_id,
             notification_type="NEW_LEAD",
-            title="Novo Lead Atribuído",
-            message=f"Novo lead: {lead_name} ({lead_phone})",
+            title="New Lead Assigned",
+            message=f"New lead: {lead_name} ({lead_phone})",
         )
 
     def notify_new_message(
@@ -210,21 +165,21 @@ class NotificationService:
         message_preview: str,
     ) -> NotificationModel:
         """
-        Notificar sobre nova mensagem.
+        Notify user about new message in conversation.
         
         Args:
-            user_id: ID da secretária
-            conversation_id: ID da conversa
-            message_preview: Preview da mensagem
+            user_id: ID of the secretary/agent
+            conversation_id: UUID of the conversation
+            message_preview: Preview text of the message
             
         Returns:
-            Notificação criada
+            Created notification model
         """
         return self.create_notification(
             user_id=user_id,
             notification_type="NEW_MESSAGE",
-            title="Nova Mensagem",
-            message=f"Conversa {conversation_id[:8]}: {message_preview[:50]}...",
+            title="New Message",
+            message=f"Conversation {conversation_id[:8]}: {message_preview[:50]}...",
         )
 
     def notify_urgent_message(
@@ -234,19 +189,19 @@ class NotificationService:
         message_text: str,
     ) -> NotificationModel:
         """
-        Notificar sobre mensagem urgente.
+        Notify user about urgent message requiring immediate attention.
         
         Args:
-            user_id: ID da secretária
-            conversation_id: ID da conversa
-            message_text: Texto da mensagem urgente
+            user_id: ID of the secretary/agent
+            conversation_id: UUID of the conversation
+            message_text: Text of the urgent message
             
         Returns:
-            Notificação criada
+            Created notification model
         """
         return self.create_notification(
             user_id=user_id,
             notification_type="URGENT_MESSAGE",
-            title="⚠️ Mensagem Urgente",
-            message=f"[URGENTE] Conversa {conversation_id[:8]}: {message_text[:100]}",
+            title="⚠️ Urgent Message",
+            message=f"[URGENT] Conversation {conversation_id[:8]}: {message_text[:100]}",
         )

@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from robbot.api.v1.dependencies import get_current_user, get_db
-from robbot.domain.entities.playbook_step import PlaybookStep
 from robbot.schemas.playbook_step import (
     PlaybookStepCreate, 
     PlaybookStepList, 
@@ -36,14 +35,12 @@ def add_step(
     """
     service = PlaybookService(db)
     
-    step = PlaybookStep(
+    created = service.add_step(
         playbook_id=payload.playbook_id,
         message_id=str(payload.message_id),
-        step_order=payload.step_order or 0,  # Will be auto-assigned
+        step_order=payload.step_order,
         context_hint=payload.context_hint,
     )
-    
-    created = service.add_step(step)
     return PlaybookStepOut.model_validate(created)
 
 

@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from robbot.api.v1.dependencies import get_current_user, get_db
-from robbot.domain.entities.playbook import Playbook
 from robbot.schemas.playbook import (
     PlaybookCreate, 
     PlaybookList, 
@@ -33,13 +32,12 @@ def create_playbook(
     Requires authentication.
     """
     service = PlaybookService(db)
-    playbook = Playbook(
+    created = service.create_playbook(
         topic_id=payload.topic_id,
         name=payload.name,
         description=payload.description,
         active=payload.active,
     )
-    created = service.create_playbook(playbook)
     return PlaybookOut.model_validate(created)
 
 

@@ -64,8 +64,25 @@ class PlaybookService:
 
     # ===== TOPIC OPERATIONS =====
 
-    def create_topic(self, topic: Topic) -> Topic:
-        """Create a new topic."""
+    def create_topic(self, name: str, description: Optional[str] = None, category: Optional[str] = None, active: bool = True) -> Topic:
+        """
+        Create a new topic.
+        
+        Args:
+            name: Topic name (must be unique)
+            description: Optional description
+            category: Optional category for grouping
+            active: Whether topic is active (default True)
+            
+        Returns:
+            Created topic entity
+        """
+        topic = Topic(
+            name=name,
+            description=description,
+            category=category,
+            active=active,
+        )
         return self.topic_repo.create(topic)
 
     def get_topic(self, topic_id: str) -> Optional[Topic]:
@@ -86,9 +103,25 @@ class PlaybookService:
 
     # ===== PLAYBOOK OPERATIONS =====
 
-    def create_playbook(self, playbook: Playbook) -> Playbook:
-        """Create playbook and auto-index for semantic search."""
-        # Create playbook
+    def create_playbook(self, topic_id: str, name: str, description: Optional[str] = None, active: bool = True) -> Playbook:
+        """
+        Create playbook and auto-index for semantic search.
+        
+        Args:
+            topic_id: ID of the associated topic
+            name: Playbook name
+            description: Optional description
+            active: Whether playbook is active (default True)
+            
+        Returns:
+            Created playbook entity
+        """
+        playbook = Playbook(
+            topic_id=topic_id,
+            name=name,
+            description=description,
+            active=active,
+        )
         created = self.playbook_repo.create(playbook)
         
         # Auto-generate embedding (will be populated when steps are added)
@@ -135,18 +168,41 @@ class PlaybookService:
 
     # ===== PLAYBOOK STEP OPERATIONS =====
 
-    def add_step(self, step: PlaybookStep) -> PlaybookStep:
-        """Add step to playbook and reindex."""
+    def add_step(
+        self,
+        playbook_id: str,
+        message_id: str,
+        step_order: Optional[int] = None,
+        context_hint: Optional[str] = None,
+    ) -> PlaybookStep:
+        """Add step to playbook and reindex.
+        
+        Args:
+            playbook_id: Playbook identifier
+            message_id: Message template identifier
+            step_order: Step order in playbook sequence. Auto-assigned if not provided.
+            context_hint: Optional context hint for step
+            
+        Returns:
+            Created PlaybookStep entity
+        """
         # Auto-assign order if not provided
-        if not step.step_order:
-            step.step_order = self.step_repo.get_next_order(step.playbook_id)
+        if not step_order:
+            step_order = self.step_repo.get_next_order(playbook_id)
+        
+        step = PlaybookStep(
+            playbook_id=playbook_id,
+            message_id=message_id,
+            step_order=step_order,
+            context_hint=context_hint,
+        )
         
         created = self.step_repo.create(step)
         
         # Reindex playbook
         try:
-            self._generate_playbook_embedding(step.playbook_id)
-            logger.info(f"✓ Step added to playbook {step.playbook_id}, reindexed")
+            self._generate_playbook_embedding(playbook_id)
+            logger.info(f"✓ Step added to playbook {playbook_id}, reindexed")
         except Exception as e:
             logger.warning(f"⚠️ Step added but reindexing failed: {e}")
         

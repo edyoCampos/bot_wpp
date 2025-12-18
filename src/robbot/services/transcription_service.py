@@ -8,7 +8,7 @@ from typing import Optional
 import httpx
 
 from robbot.config.settings import get_settings
-from robbot.core.exceptions import ExternalAPIError
+from robbot.core.exceptions import ExternalServiceError
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -44,11 +44,11 @@ class TranscriptionService:
                 )
                 logger.info(f"✓ Faster-Whisper model loaded: {self.model_size}")
             except ImportError:
-                raise ExternalAPIError(
-                    "faster-whisper not installed. Run: pip install faster-whisper"
+                raise ExternalServiceError(
+                    "faster-whisper not installed. Run: uv add faster-whisper"
                 )
             except Exception as e:
-                raise ExternalAPIError(f"Failed to load Whisper model: {e}")
+                raise ExternalServiceError(f"Failed to load Whisper model: {e}")
     
     async def transcribe_audio(self, audio_url: str, language: str = "pt") -> Optional[str]:
         """
@@ -72,7 +72,7 @@ class TranscriptionService:
             # Download audio file
             audio_content = await self._download_audio(audio_url)
             if not audio_content:
-                raise ExternalAPIError(f"Failed to download audio from {audio_url}")
+                raise ExternalServiceError(f"Failed to download audio from {audio_url}")
             
             # Save to temporary file
             with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as temp_file:
@@ -98,64 +98,11 @@ class TranscriptionService:
                 # Clean up temp file
                 temp_path.unlink(missing_ok=True)
                 
-        self._load_model()
-        
-        try:
-            logger.info(f"🎤 Starting audio transcription (sync) from: {audio_url}")
-            
-            # Download audio file
-            audio_content = self._download_audio_sync(audio_url)
-            if not audio_content:
-                raise ExternalAPIError(f"Failed to download audio from {audio_url}")
-            
-            # Save to temporary file
-            with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as temp_file:
-                temp_file.write(audio_content)
-                temp_path = Path(temp_file.name)
-            
-            try:
-                # Transcribe with Faster-Whisper
-                segments, info = self.model.transcribe(
-                    str(temp_path),
-                    language=language,
-                    beam_size=5,
-                    vad_filter=True,
-                )
-                
-                # Concatenate all segments
-                transcript = " ".join([segment.text for segment in segments]).strip()
-                
-                logger.info(f"✓ Audio transcribed (length={len(transcript)} chars, detected_lang={info.language})")
-                return transcript
-            audio_content = self._download_audio_sync(audio_url)
-            if not audio_content:
-                raise ExternalAPIError(f"Failed to download audio from {audio_url}")
-            
-            # Save to temporary file
-            with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as temp_file:
-                temp_file.write(audio_content)
-                temp_path = Path(temp_file.name)
-            
-            try:
-                # Transcribe with Whisper
-                with open(temp_path, "rb") as audio_file:
-                    transcript = self.client.audio.transcriptions.create(
-                        model=settings.WHISPER_MODEL,
-                        file=audio_file,
-                        language=language,
-                        response_format="text"
-                    )
-                
-                logger.info(f"✓ Audio transcribed successfully (length={len(transcript)} chars)")
-                return transcript.strip() if isinstance(transcript, str) else transcript.text.strip()
-                
-            finally:
-                # Clean up temp file
-                temp_path.unlink(missing_ok=True)
-                
+        except ExternalServiceError:
+            raise
         except Exception as e:
             logger.error(f"✗ Transcription failed: {e}", exc_info=True)
-            raise ExternalAPIError(f"Audio transcription failed: {e}") from e
+            raise ExternalServiceError(f"Audio transcription failed: {e}") from e
 
     def _download_audio_sync(self, url: str) -> Optional[bytes]:
         """Baixar arquivo de áudio da URL (síncrono)."""
@@ -164,6 +111,6 @@ class TranscriptionService:
                 response = client.get(url)
                 response.raise_for_status()
                 return response.content
-        except Exception as e:
+        except httpx.HTTPError as e:
             logger.error(f"✗ Failed to download audio from {url}: {e}")
             return None

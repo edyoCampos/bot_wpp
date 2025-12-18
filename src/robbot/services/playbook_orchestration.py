@@ -76,8 +76,9 @@ class PlaybookOrchestrationMixin:
                 message_text, intent, context, conversation
             )
             
-            # Get tool declarations
-            tools = self._get_playbook_tools()
+            # Get tool declarations (currently passed to gemini_client at initialization)
+            # Tools are registered in __init__ of ConversationOrchestrator
+            # Future: Pass tools dynamically to generate_response()
             
             # Initialize conversation history for multi-turn tool calling
             messages = [{"role": "user", "content": prompt}]
@@ -92,10 +93,12 @@ class PlaybookOrchestrationMixin:
                 
                 # Check if response contains function call
                 # In real implementation, check response.function_call
+                # Note: Currently returns None (stub implementation - function calling not yet integrated)
                 function_call = self._extract_function_call(response)
+                assert function_call is None or isinstance(function_call, dict), "Invalid function_call type"
                 
-                if not function_call:
-                    # Final text response
+                if function_call is None:
+                    # Final text response (no function call detected)
                     logger.info("✓ Gemini generated final text response")
                     return response
                 
@@ -155,8 +158,8 @@ FERRAMENTAS DE PLAYBOOK DISPONÍVEIS:
 Você tem acesso a 3 ferramentas para usar playbooks de mensagens prontas:
 
 1. **search_playbooks(query)**: Busca playbooks relevantes semanticamente
-   - Use quando cliente mencionar tópicos específicos (botox, preenchimento, agendamento, etc.)
-   - Exemplos de queries: "botox procedimento valor", "clareamento dental informações"
+   - Use quando cliente mencionar tópicos específicos (emagrecimento, saúde, hormônios, metabolismo, etc.)
+   - Exemplos de queries: "emagrecimento saudável médico", "tratamento hormonal perda peso"
    - Retorna lista de playbooks com scores de relevância
 
 2. **get_playbook_steps(playbook_id)**: Obtém passos detalhados de um playbook
@@ -165,14 +168,14 @@ Você tem acesso a 3 ferramentas para usar playbooks de mensagens prontas:
 
 3. **send_playbook_message(message_id, conversation_id, custom_intro)**: Envia mensagem do playbook
    - Use para enviar conteúdo relevante ao cliente
-   - SEMPRE adicione custom_intro para contextualizar (ex: "Aqui está o material sobre botox:")
+   - SEMPRE adicione custom_intro para contextualizar (ex: "Aqui está o material sobre emagrecimento saudável:")
    - Mantém fluxo natural da conversa
 
 QUANDO USAR PLAYBOOKS:
-- Cliente pergunta sobre procedimentos/serviços específicos
-- Cliente pede informações detalhadas, preços, antes/depois
-- Cliente quer agendar consulta (enviar playbook de agendamento)
-- Você identifica oportunidade de compartilhar material educativo
+- Cliente pergunta sobre tratamentos/programas de saúde específicos (emagrecimento, hormônios, metabolismo)
+- Cliente pede informações detalhadas sobre abordagem médica, métodos, acompanhamento
+- Cliente quer agendar consulta de avaliação (enviar playbook de agendamento)
+- Você identifica oportunidade de compartilhar material educativo sobre saúde
 
 IMPORTANTE:
 - Use playbooks para complementar sua resposta, não substituir
@@ -188,10 +191,40 @@ IMPORTANTE:
         
         Returns:
             Dict with function name and args, or None if no function call
+        
+        Note:
+            IMPLEMENTATION PENDING - Gemini Function Calling integration.
+            
+            When implemented, should parse:
+            - response.candidates[0].content.parts[0].function_call.name
+            - response.candidates[0].content.parts[0].function_call.args
+            
+            See: https://ai.google.dev/gemini-api/docs/function-calling
         """
-        # This is a placeholder - real implementation would parse Gemini's function_call object
-        # For now, return None (no function call)
-        # TODO: Implement actual function call detection from Gemini response
+        # Check if response has function_call structure
+        # This is compatible with google.generativeai response format
+        try:
+            if isinstance(response, dict) and "function_call" in response:
+                return {
+                    "name": response["function_call"]["name"],
+                    "args": response["function_call"]["args"]
+                }
+            
+            # Check for nested structure in candidates
+            if "candidates" in response:
+                candidates = response.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    for part in parts:
+                        if "function_call" in part:
+                            return {
+                                "name": part["function_call"]["name"],
+                                "args": part["function_call"]["args"]
+                            }
+        except (AttributeError, IndexError, KeyError, TypeError) as e:
+            logger.debug(f"No function call in response: {e}")
+        
+        # No function call found - return None for regular text response
         return None
     
     def _append_tool_result_to_prompt(
@@ -224,8 +257,11 @@ IMPORTANTE:
             logger.info(f"✓ Voice message transcribed: {len(text)} chars")
             return text
             
-        except Exception as e:
+        except ExternalServiceError as e:
             logger.error(f"Error transcribing voice message: {e}")
+            return None
+        except (OSError, ValueError, RuntimeError) as e:
+            logger.error(f"Unexpected error transcribing voice message: {e}", exc_info=True)
             return None
     
     async def _process_media_message(
@@ -273,46 +309,3 @@ IMPORTANTE:
         else:
             return f"[Mensagem de tipo {message_type}]"
 
-
-# ============================================================================
-# Integration Instructions
-# ============================================================================
-
-INTEGRATION_NOTES = """
-Para integrar este mixin no ConversationOrchestrator:
-
-1. Em conversation_orchestrator.py, adicionar herança:
-   
-   class ConversationOrchestrator(PlaybookOrchestrationMixin):
-       ...
-
-2. Atualizar _generate_response() para usar _generate_response_with_tools():
-   
-   async def _generate_response(...):
-       # Tentar com playbook tools primeiro
-       try:
-           return await self._generate_response_with_tools(
-               session, message_text, intent, context, conversation
-           )
-       except Exception as e:
-           logger.warning(f"Function calling failed, falling back: {e}")
-           # Fallback para geração simples
-           return await self._generate_simple_response(...)
-
-3. Atualizar _save_inbound_message() para transcrever áudio:
-   
-   async def _save_inbound_message(...):
-       if message_type == "audio" and media_url:
-           text = await self._transcribe_voice_message(media_url)
-           # Salvar transcription em conversation_messages.body
-       ...
-
-4. Adicionar import no topo do arquivo:
-   
-   from robbot.services.playbook_orchestration import PlaybookOrchestrationMixin
-
-IMPORTANTE:
-- Isso requer atualizar gemini_client.py para suportar tools parameter
-- Gemini API com function calling: model.generate_content(prompt, tools=tools)
-- Extrair function_call do response: response.candidates[0].content.parts[0].function_call
-"""

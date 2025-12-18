@@ -1,7 +1,7 @@
 """
 Conversation Service - Business logic for conversation management.
 
-Este service orquestra operações de conversação separadas da lógica de IA.
+This service orchestrates conversation operations separate from AI logic.
 """
 
 import logging
@@ -19,17 +19,17 @@ logger = logging.getLogger(__name__)
 
 class ConversationService:
     """
-    Service para gerenciar conversas (business logic).
+    Service to manage conversations (business logic).
     
-    Responsabilidades:
-    - CRUD de conversas
-    - Transições de status
-    - Transferências para secretárias
-    - Fechamento de conversas
+    Responsibilities:
+    - Conversation CRUD operations
+    - Status transitions
+    - Transfers to secretaries
+    - Conversation closure
     """
 
     def __init__(self, db: Session):
-        """Inicializar service com sessão do banco."""
+        """Initialize service with database session."""
         self.db = db
 
     def get_or_create(
@@ -39,15 +39,15 @@ class ConversationService:
         name: Optional[str] = None,
     ) -> ConversationModel:
         """
-        Buscar conversa existente ou criar nova.
+        Get existing conversation or create new one.
         
         Args:
-            chat_id: ID do chat WhatsApp
-            phone_number: Número de telefone
-            name: Nome do contato (opcional)
+            chat_id: WhatsApp chat ID
+            phone_number: Phone number
+            name: Contact name (optional)
             
         Returns:
-            Conversação encontrada ou criada
+            Found or created conversation
         """
         from robbot.adapters.repositories.conversation_repository import (
             ConversationRepository
@@ -80,18 +80,18 @@ class ConversationService:
         new_status: ConversationStatus,
     ) -> ConversationModel:
         """
-        Atualizar status da conversa com validação de transições.
+        Update conversation status with transition validation.
         
         Args:
-            conversation_id: ID da conversa
-            new_status: Novo status
+            conversation_id: Conversation ID
+            new_status: New status
             
         Returns:
-            Conversa atualizada
+            Updated conversation
             
         Raises:
-            NotFoundException: Se conversa não existir
-            BusinessRuleError: Se transição inválida
+            NotFoundException: If conversation not found
+            BusinessRuleError: If transition is invalid
         """
         from robbot.adapters.repositories.conversation_repository import (
             ConversationRepository
@@ -123,17 +123,17 @@ class ConversationService:
 
     def close(self, conversation_id: str, reason: Optional[str] = None) -> ConversationModel:
         """
-        Fechar conversa.
+        Close conversation.
         
         Args:
-            conversation_id: ID da conversa
-            reason: Motivo do fechamento (opcional)
+            conversation_id: Conversation ID
+            reason: Closure reason (optional)
             
         Returns:
-            Conversa fechada
+            Closed conversation
             
         Raises:
-            NotFoundException: Se conversa não existir
+            NotFoundException: If conversation not found
         """
         from robbot.adapters.repositories.conversation_repository import (
             ConversationRepository
@@ -163,17 +163,17 @@ class ConversationService:
         user_id: int,
     ) -> ConversationModel:
         """
-        Transferir conversa para secretária.
+        Transfer conversation to secretary.
         
         Args:
-            conversation_id: ID da conversa
-            user_id: ID do usuário (secretária)
+            conversation_id: Conversation ID
+            user_id: User ID (secretary)
             
         Returns:
-            Conversa transferida
+            Transferred conversation
             
         Raises:
-            NotFoundException: Se conversa não existir
+            NotFoundException: If conversation not found
         """
         from robbot.adapters.repositories.conversation_repository import (
             ConversationRepository
@@ -199,13 +199,13 @@ class ConversationService:
 
     def get_active_conversations(self, limit: int = 100) -> list[ConversationModel]:
         """
-        Obter conversas ativas.
+        Get active conversations.
         
         Args:
-            limit: Número máximo de resultados
+            limit: Maximum number of results
             
         Returns:
-            Lista de conversas ativas
+            List of active conversations
         """
         from robbot.adapters.repositories.conversation_repository import (
             ConversationRepository
@@ -213,6 +213,63 @@ class ConversationService:
         
         repo = ConversationRepository(self.db)
         return repo.get_active(limit=limit)
+    
+    def list_conversations(
+        self,
+        status: Optional[ConversationStatus] = None,
+        is_urgent: Optional[bool] = None,
+        assigned_to_user_id: Optional[int] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[ConversationModel], int]:
+        """
+        List conversations with filters.
+        
+        Args:
+            status: Filter by conversation status
+            is_urgent: Filter by urgency flag
+            assigned_to_user_id: Filter by assigned user
+            limit: Maximum number of results
+            offset: Number of results to skip
+            
+        Returns:
+            Tuple of (conversations list, total count)
+        """
+        from robbot.adapters.repositories.conversation_repository import (
+            ConversationRepository
+        )
+        
+        repo = ConversationRepository(self.db)
+        
+        filters = {}
+        if status is not None:
+            filters["status"] = status
+        if is_urgent is not None:
+            filters["is_urgent"] = is_urgent
+        if assigned_to_user_id is not None:
+            filters["assigned_to_user_id"] = assigned_to_user_id
+        
+        conversations = repo.find_by_criteria(filters, limit=limit, offset=offset)
+        total = len(repo.find_by_criteria(filters))
+        
+        return conversations, total
+    
+    def get_by_id(self, conversation_id: str) -> Optional[ConversationModel]:
+        """
+        Get conversation by ID.
+        
+        Args:
+            conversation_id: UUID of the conversation
+            
+        Returns:
+            Conversation model or None if not found
+        """
+        from robbot.adapters.repositories.conversation_repository import (
+            ConversationRepository
+        )
+        
+        repo = ConversationRepository(self.db)
+        return repo.get_by_id(conversation_id)
 
     def _is_valid_transition(
         self,
@@ -253,3 +310,60 @@ class ConversationService:
         
         allowed = valid_transitions.get(old_status, [])
         return new_status in allowed
+
+    def update_notes(
+        self,
+        conversation_id: str,
+        notes: str,
+    ) -> ConversationModel:
+        """
+        Update conversation notes.
+        
+        Args:
+            conversation_id: Conversation ID
+            notes: Notes text (max 5000 chars)
+            
+        Returns:
+            Updated conversation
+            
+        Raises:
+            NotFoundException: If conversation not found
+        """
+        from robbot.adapters.repositories.conversation_repository import (
+            ConversationRepository
+        )
+        
+        repo = ConversationRepository(self.db)
+        conversation = repo.get_by_id(conversation_id)
+        
+        if not conversation:
+            raise NotFoundException(f"Conversation {conversation_id} not found")
+        
+        updated = repo.update(
+            conversation_id=conversation_id,
+            data={"notes": notes}
+        )
+        
+        logger.info(f"✓ Notes updated (conv_id={conversation_id})")
+        
+        return updated
+
+    def find_by_criteria(
+        self,
+        filters: dict,
+    ) -> list[ConversationModel]:
+        """
+        Find conversations by criteria.
+        
+        Args:
+            filters: Dict with filter criteria (status, assigned_to_user_id, etc.)
+            
+        Returns:
+            List of conversations matching criteria
+        """
+        from robbot.adapters.repositories.conversation_repository import (
+            ConversationRepository
+        )
+        
+        repo = ConversationRepository(self.db)
+        return repo.find_by_criteria(filters)

@@ -1,22 +1,43 @@
 # 📮 Postman Collection - WPP Bot API
 
-Collection completa e organizada para testar todos os 90+ endpoints da API do WhatsApp Bot com Gemini AI.
+> **Collection UNIFICADA** para testar todos os endpoints da API WhatsApp Bot
+
+## 📦 Arquivos Disponíveis
+
+### ✅ Arquivos Principais (USE ESTES)
+
+| Arquivo | Descrição | Status |
+|---------|-----------|--------|
+| **WPP_Bot_API.postman_collection.json** | Collection completa (90+ endpoints) | ✅ **Recomendado** |
+| **WPP_Bot_API.postman_environment.json** | Environment (local dev) | ✅ **Necessário** |
+
+### 📁 Arquivos Legados (Backup)
+
+| Arquivo | Descrição | Status |
+|---------|-----------|--------|
+| WPP_Bot_Playbook_Addon.postman_collection.json | Addon antigo de playbooks | ⚠️ **Deprecado** (mesclado na principal) |
+
+> **⚠️ Nota**: O addon de playbooks foi mesclado na collection principal. Você **NÃO precisa** importar 2 collections.
+
+---
 
 ## 📥 Como Importar
 
-### 1. Importar a Collection
+### 1️⃣ Importar Collection Principal
 
 1. Abra o Postman
 2. Clique em **Import** (canto superior esquerdo)
-3. Selecione o arquivo `WPP_Bot_API.postman_collection.json`
+3. Selecione **apenas** o arquivo: `WPP_Bot_API.postman_collection.json`
 4. Clique em **Import**
 
-### 2. Importar o Environment
+### 2️⃣ Importar Environment
 
 1. Clique em **Import** novamente
-2. Selecione o arquivo `WPP_Bot_API.postman_environment.json`
+2. Selecione o arquivo: `WPP_Bot_API.postman_environment.json`
 3. Clique em **Import**
-4. No canto superior direito, selecione o environment **"WPP Bot - Local Development"**
+4. No canto superior direito, selecione: **"WPP Bot - Local Development"**
+
+✅ **Pronto! Você tem acesso a TODOS os endpoints.**
 
 ## 🚀 Primeiros Passos
 
@@ -64,9 +85,9 @@ Execute: **Auth > Get Current User**
 
 Deve retornar seus dados de usuário.
 
-## 📋 Estrutura da Collection
+## 📋 Estrutura da Collection CONSOLIDADA
 
-A collection está organizada em **14 categorias** com 90+ endpoints:
+A collection unificada está organizada em **18 categorias** com 95+ endpoints:
 
 ### 🏥 Health (1 endpoint)
 - Health check da API e serviços
@@ -138,6 +159,25 @@ A collection está organizada em **14 categorias** com 90+ endpoints:
 ### 📋 Audit (2 endpoints)
 - List audit logs **(Admin only)**
 - Get entity audit trail **(Admin only)**
+
+### 🎯 Topics (5 endpoints) ⭐ **NOVO**
+- Create, Get, List, Update, Delete
+- Gerenciamento de tópicos (categorias para playbooks)
+
+### 📚 Playbooks (6 endpoints) ⭐ **NOVO**
+- Create, Get, List by Topic, Update, Delete
+- **Search (RAG)** - Busca semântica com ChromaDB
+
+### 📝 Playbook Steps (6 endpoints) ⭐ **NOVO**
+- Add, List, List with Details (for LLM)
+- Reorder, Update, Delete
+- Sequências organizadas de mensagens
+
+### 🤖 Message Descriptions (1 endpoint) ⭐ **NOVO**
+- **Generate AI Description** - Gemini Vision para imagens/vídeos
+- Auto-geração de descrições para ajudar o LLM
+
+---
 
 ## 🔑 Autenticação
 
@@ -264,6 +304,22 @@ GET {{base_url}}/leads/{{lead_id}}
 }
 ```
 
+## 🧪 Fluxo Completo de Teste (5 Fluxos)
+
+### Fluxo 5: Playbooks com RAG ⭐ **NOVO**
+
+```
+1. POST /topics → criar "Botox"
+2. POST /messages → 5 mensagens (texto, imagem, vídeo, PDF, location)
+3. POST /messages/{id}/generate-description → Gemini Vision descreve mídia
+4. POST /playbooks → "Botox - Fluxo Completo"
+5. POST /playbook-steps → adicionar 5 steps ordenados
+6. GET /playbook-steps/playbook/{id}/details → LLM consome
+7. GET /playbooks/search?query=botox → busca semântica (ChromaDB)
+```
+
+---
+
 ## 🐛 Troubleshooting
 
 ### ❌ Erro 401 Unauthorized
@@ -346,6 +402,21 @@ Todos os endpoints que modificam dados geram audit logs automaticamente:
 - Action: `create`, `update`, `delete`, `convert`, etc.
 - Metadata: Dados alterados em JSON
 
+## 📦 Arquivos Finais (Consolidados)
+
+### ✅ USE APENAS ESTES
+
+| Arquivo | Tamanho | Descrição |
+|---------|---------|-----------|
+| `WPP_Bot_API.postman_collection.json` | 73KB | **Collection completa** (18 categorias, 95+ endpoints) |
+| `WPP_Bot_API.postman_environment.json` | 1.3KB | Environment variables |
+
+### 📁 Backup
+
+- `backup/WPP_Bot_Playbook_Addon.postman_collection.json` - Addon antigo (**mesclado na principal**)
+
+---
+
 ## 🤝 Contribuindo
 
 Se encontrar algum endpoint faltando ou incorreto:
@@ -356,13 +427,17 @@ Se encontrar algum endpoint faltando ou incorreto:
 
 ## 📚 Documentação Relacionada
 
-- [README.md](./README.md) - Documentação completa do projeto
-- [BACKLOG.md](./BACKLOG.md) - Status dos épicos e features
+- [README.md](../README.md) - Documentação completa do projeto
+- [PLANO_TESTES_CASOS_USO.md](../PLANO_TESTES_CASOS_USO.md) - 44 casos de uso organizados
 - [FastAPI Swagger](http://localhost:3333/docs) - Documentação interativa da API
 - [WAHA Docs](https://waha.devlike.pro/) - Documentação oficial do WAHA
 
 ## 🎉 Pronto!
 
-Agora você tem uma **collection completa e profissional** para testar todos os endpoints da API!
+Agora você tem uma **collection ÚNICA e consolidada** para testar todos os 95+ endpoints da API!
+
+**📊 Versão:** 2.0.0 (Consolidada)  
+**🆕 Novos recursos:** Topics, Playbooks (RAG), Steps, AI Descriptions  
+**🗓️ Última atualização:** Dezembro 2024
 
 **Happy Testing! 🚀**

@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "wpp-bot-api-collection-v1",
 		"name": "WPP Bot API - Complete Collection",
-		"description": "Collection completa da API do WhatsApp Bot com Gemini AI.\n\n## 🚀 Como Usar\n\n1. **Importar no Postman**: File > Import > selecione este arquivo\n2. **Configurar Environment**: Importe o arquivo `WPP_Bot_API.postman_environment.json`\n3. **Autenticar**: Execute `Auth > Login` para obter o token JWT\n4. **Testar**: O token é automaticamente salvo e usado nos próximos requests\n\n## 📋 Categorias\n\n- **Health**: Health check e status da API\n- **Auth**: Autenticação, registro, refresh token\n- **Users**: Gerenciamento de usuários\n- **Leads**: Gerenciamento de leads e conversões\n- **Conversations**: Conversas, transferências, fechamento\n- **Messages**: Mensagens (envio, listagem, atualização)\n- **Tags**: Tags e associações com conversas\n- **WAHA**: Sessões WhatsApp e operações WAHA\n- **Webhooks**: Recebimento de webhooks WAHA\n- **Queues**: Monitoramento de filas Redis/RQ\n- **Jobs**: Jobs assíncronos (reengajamento)\n- **AI**: Processamento Gemini AI\n- **Notifications**: Notificações do sistema\n- **Audit**: Logs de auditoria\n\n## 🔐 Autenticação\n\nA maioria dos endpoints requer JWT token no header `Authorization: Bearer {token}`.\nO token é obtido via `POST /api/v1/auth/token` e é válido por 15 minutos.\n- **Topics**: Gerenciamento de tópicos\n- **Playbooks**: Sistema de playbooks com RAG\n- **Playbook Steps**: Sequências de mensagens\n- **Message Descriptions**: Descrições AI com Gemini Vision",
+		"description": "Collection completa da API do WhatsApp Bot com Gemini AI.\n\n## 🚀 Como Usar\n\n1. **Importar no Postman**: File > Import > selecione este arquivo\n2. **Configurar Environment**: Importe o arquivo `WPP_Bot_API.postman_environment.json`\n3. **Autenticar**: Execute `Auth > Login` para obter o token JWT\n4. **Testar**: O token é automaticamente salvo e usado nos próximos requests\n\n## 📋 Categorias\n\n- **Health**: Health check e status da API\n- **Auth**: Autenticação, registro, refresh token\n- **Users**: Gerenciamento de usuários\n- **Leads**: Gerenciamento de leads e conversões\n- **Conversations**: Conversas, transferências, fechamento\n- **Messages**: Mensagens (envio, listagem, atualização)\n- **Tags**: Tags e associações com conversas\n- **WAHA**: Sessões WhatsApp e operações WAHA\n- **Webhooks**: Recebimento de webhooks WAHA\n- **Queues**: Monitoramento de filas Redis/RQ\n- **Jobs**: Jobs assíncronos (reengajamento)\n- **AI**: Processamento Gemini AI\n- **Notifications**: Notificações do sistema\n- **Audit**: Logs de auditoria\n\n## 🔐 Autenticação\n\nA maioria dos endpoints requer JWT token no header `Authorization: Bearer {token}`.\nO token é obtido via `POST /api/v1/auth/token` e é válido por 15 minutos.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"auth": {
@@ -57,26 +57,6 @@
 			"key": "base_url",
 			"value": "http://localhost:3333/api/v1",
 			"type": "string"
-		},
-		{
-			"key": "topic_id",
-			"value": "paste-topic-uuid-here",
-			"type": "string"
-		},
-		{
-			"key": "playbook_id",
-			"value": "paste-playbook-uuid-here",
-			"type": "string"
-		},
-		{
-			"key": "message_id",
-			"value": "paste-message-uuid-here",
-			"type": "string"
-		},
-		{
-			"key": "step_id",
-			"value": "paste-step-uuid-here",
-			"type": "string"
 		}
 	],
 	"item": [
@@ -93,12 +73,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/health",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"health"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["health"]
 						},
 						"description": "Verifica status da API, banco de dados, Redis e ChromaDB.\n\n**Não requer autenticação**"
 					},
@@ -128,13 +104,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/auth/signup",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"auth",
-								"signup"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["auth", "signup"]
 						},
 						"description": "Registrar novo usuário.\n\n**Roles disponíveis:**\n- `admin`: Acesso total\n- `agent`: Acesso a conversas e leads\n- `viewer`: Apenas visualização"
 					},
@@ -186,13 +157,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/auth/token",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"auth",
-								"token"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["auth", "token"]
 						},
 						"description": "Autenticar usuário e obter tokens JWT.\n\n**Retorna:**\n- `access_token`: Válido por 15 minutos\n- `refresh_token`: Válido por 7 dias\n\n**Os tokens são automaticamente salvos no environment.**"
 					},
@@ -205,13 +171,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/auth/refresh",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"auth",
-								"refresh"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["auth", "refresh"]
 						},
 						"description": "Renovar access token usando refresh token válido.\n\n**Requer:** Bearer token (refresh_token)"
 					},
@@ -224,13 +185,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/auth/me",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"auth",
-								"me"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["auth", "me"]
 						},
 						"description": "Obter dados do usuário autenticado.\n\n**Requer:** Bearer token"
 					},
@@ -243,13 +199,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/auth/logout",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"auth",
-								"logout"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["auth", "logout"]
 						},
 						"description": "Revogar token atual (logout).\n\n**Requer:** Bearer token"
 					},
@@ -274,13 +225,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/auth/password-recovery",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"auth",
-								"password-recovery"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["auth", "password-recovery"]
 						},
 						"description": "Solicitar recuperação de senha.\n\n**Não requer autenticação**"
 					},
@@ -305,13 +251,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/auth/password-reset",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"auth",
-								"password-reset"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["auth", "password-reset"]
 						},
 						"description": "Resetar senha com token de recuperação.\n\n**Não requer autenticação**"
 					},
@@ -329,12 +270,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/users?skip=0&limit=50",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"users"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["users"],
 							"query": [
 								{
 									"key": "skip",
@@ -357,13 +294,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/users/:user_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"users",
-								":user_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["users", ":user_id"],
 							"variable": [
 								{
 									"key": "user_id",
@@ -391,13 +323,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/users/:user_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"users",
-								":user_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["users", ":user_id"],
 							"variable": [
 								{
 									"key": "user_id",
@@ -416,13 +343,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/users/:user_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"users",
-								":user_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["users", ":user_id"],
 							"variable": [
 								{
 									"key": "user_id",
@@ -446,12 +368,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/leads?skip=0&limit=50&stage=qualified&status=active",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"leads"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["leads"],
 							"query": [
 								{
 									"key": "skip",
@@ -484,13 +402,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/leads/:lead_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"leads",
-								":lead_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["leads", ":lead_id"],
 							"variable": [
 								{
 									"key": "lead_id",
@@ -518,12 +431,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/leads",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"leads"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["leads"]
 						},
 						"description": "Criar novo lead manualmente.\n\n**Campos obrigatórios:**\n- `phone`: Telefone com DDD (ex: 5511999999999)\n- `name`: Nome do lead\n\n**Stages:** new, contacted, qualified, proposal, negotiation"
 					},
@@ -545,14 +454,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/leads/:lead_id/maturity",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"leads",
-								":lead_id",
-								"maturity"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["leads", ":lead_id", "maturity"],
 							"variable": [
 								{
 									"key": "lead_id",
@@ -580,14 +483,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/leads/:lead_id/assign",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"leads",
-								":lead_id",
-								"assign"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["leads", ":lead_id", "assign"],
 							"variable": [
 								{
 									"key": "lead_id",
@@ -606,14 +503,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/leads/:lead_id/auto-assign",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"leads",
-								":lead_id",
-								"auto-assign"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["leads", ":lead_id", "auto-assign"],
 							"variable": [
 								{
 									"key": "lead_id",
@@ -641,14 +532,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/leads/:lead_id/convert",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"leads",
-								":lead_id",
-								"convert"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["leads", ":lead_id", "convert"],
 							"variable": [
 								{
 									"key": "lead_id",
@@ -676,14 +561,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/leads/:lead_id/mark-lost",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"leads",
-								":lead_id",
-								"mark-lost"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["leads", ":lead_id", "mark-lost"],
 							"variable": [
 								{
 									"key": "lead_id",
@@ -702,13 +581,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/leads/:lead_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"leads",
-								":lead_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["leads", ":lead_id"],
 							"variable": [
 								{
 									"key": "lead_id",
@@ -727,14 +601,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/leads/:lead_id/restore",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"leads",
-								":lead_id",
-								"restore"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["leads", ":lead_id", "restore"],
 							"variable": [
 								{
 									"key": "lead_id",
@@ -758,12 +626,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/conversations?skip=0&limit=50&status=active&is_urgent=false",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations"],
 							"query": [
 								{
 									"key": "skip",
@@ -795,13 +659,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/conversations/search?query=agendamento",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations",
-								"search"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations", "search"],
 							"query": [
 								{
 									"key": "query",
@@ -820,13 +679,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/conversations/:conversation_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations",
-								":conversation_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations", ":conversation_id"],
 							"variable": [
 								{
 									"key": "conversation_id",
@@ -854,14 +708,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/conversations/:conversation_id/status",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations",
-								":conversation_id",
-								"status"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations", ":conversation_id", "status"],
 							"variable": [
 								{
 									"key": "conversation_id",
@@ -889,14 +737,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/conversations/:conversation_id/transfer",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations",
-								":conversation_id",
-								"transfer"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations", ":conversation_id", "transfer"],
 							"variable": [
 								{
 									"key": "conversation_id",
@@ -924,14 +766,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/conversations/:conversation_id/close",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations",
-								":conversation_id",
-								"close"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations", ":conversation_id", "close"],
 							"variable": [
 								{
 									"key": "conversation_id",
@@ -959,14 +795,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/conversations/:conversation_id/notes",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations",
-								":conversation_id",
-								"notes"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations", ":conversation_id", "notes"],
 							"variable": [
 								{
 									"key": "conversation_id",
@@ -985,13 +815,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/conversations/export?format=csv&start_date=2025-01-01",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations",
-								"export"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations", "export"],
 							"query": [
 								{
 									"key": "format",
@@ -1029,12 +854,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/messages",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"messages"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["messages"]
 						},
 						"description": "Criar mensagem manualmente.\n\n**sender_type:** user, bot, agent\n**direction:** inbound, outbound"
 					},
@@ -1047,14 +868,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/messages/conversation/:conversation_id?skip=0&limit=100",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"messages",
-								"conversation",
-								":conversation_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["messages", "conversation", ":conversation_id"],
 							"query": [
 								{
 									"key": "skip",
@@ -1083,13 +898,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/messages/:message_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"messages",
-								":message_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["messages", ":message_id"],
 							"variable": [
 								{
 									"key": "message_id",
@@ -1117,13 +927,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/messages/:message_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"messages",
-								":message_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["messages", ":message_id"],
 							"variable": [
 								{
 									"key": "message_id",
@@ -1142,13 +947,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/messages/:message_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"messages",
-								":message_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["messages", ":message_id"],
 							"variable": [
 								{
 									"key": "message_id",
@@ -1181,12 +981,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/tags",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"tags"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["tags"]
 						},
 						"description": "Criar nova tag."
 					},
@@ -1199,12 +995,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/tags",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"tags"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["tags"]
 						},
 						"description": "Listar todas as tags."
 					},
@@ -1217,13 +1009,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/tags/:tag_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"tags",
-								":tag_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["tags", ":tag_id"],
 							"variable": [
 								{
 									"key": "tag_id",
@@ -1251,14 +1038,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/conversations/:conversation_id/tags",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations",
-								":conversation_id",
-								"tags"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations", ":conversation_id", "tags"],
 							"variable": [
 								{
 									"key": "conversation_id",
@@ -1277,15 +1058,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/conversations/:conversation_id/tags/:tag_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations",
-								":conversation_id",
-								"tags",
-								":tag_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations", ":conversation_id", "tags", ":tag_id"],
 							"variable": [
 								{
 									"key": "conversation_id",
@@ -1308,14 +1082,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/conversations/:conversation_id/tags",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"conversations",
-								":conversation_id",
-								"tags"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["conversations", ":conversation_id", "tags"],
 							"variable": [
 								{
 									"key": "conversation_id",
@@ -1351,13 +1119,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/sessions",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"sessions"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "sessions"]
 								},
 								"description": "**Admin only** - Cria nova sessão WhatsApp no WAHA.\n\n- Nome único para identificar a sessão\n- Webhook URL para receber eventos\n- Lista de eventos a serem enviados"
 							},
@@ -1370,15 +1133,8 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/waha/sessions/:name/start",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"sessions",
-										":name",
-										"start"
-									],
+									"host": ["{{base_url}}"],
+									"path": ["waha", "sessions", ":name", "start"],
 									"variable": [
 										{
 											"key": "name",
@@ -1397,15 +1153,8 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/waha/sessions/:name/stop",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"sessions",
-										":name",
-										"stop"
-									],
+									"host": ["{{base_url}}"],
+									"path": ["waha", "sessions", ":name", "stop"],
 									"variable": [
 										{
 											"key": "name",
@@ -1424,15 +1173,8 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/waha/sessions/:name/restart",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"sessions",
-										":name",
-										"restart"
-									],
+									"host": ["{{base_url}}"],
+									"path": ["waha", "sessions", ":name", "restart"],
 									"variable": [
 										{
 											"key": "name",
@@ -1451,15 +1193,8 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/waha/sessions/:name/status",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"sessions",
-										":name",
-										"status"
-									],
+									"host": ["{{base_url}}"],
+									"path": ["waha", "sessions", ":name", "status"],
 									"variable": [
 										{
 											"key": "name",
@@ -1478,15 +1213,8 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/waha/sessions/:name/qr",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"sessions",
-										":name",
-										"qr"
-									],
+									"host": ["{{base_url}}"],
+									"path": ["waha", "sessions", ":name", "qr"],
 									"variable": [
 										{
 											"key": "name",
@@ -1505,15 +1233,8 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/waha/sessions/:name/logout",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"sessions",
-										":name",
-										"logout"
-									],
+									"host": ["{{base_url}}"],
+									"path": ["waha", "sessions", ":name", "logout"],
 									"variable": [
 										{
 											"key": "name",
@@ -1546,14 +1267,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-text",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-text"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-text"]
 								},
 								"description": "Envia mensagem de texto.\n\n**Rate limited** - Aplica delays anti-ban por chat_id."
 							},
@@ -1575,14 +1290,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-image",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-image"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-image"]
 								},
 								"description": "Envia imagem com caption opcional.\n\nSuporta file_url ou file_data (base64)."
 							},
@@ -1604,14 +1313,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-file",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-file"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-file"]
 								},
 								"description": "Envia arquivo/documento.\n\nSuporta PDF, DOC, XLS, ZIP, etc."
 							},
@@ -1633,14 +1336,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-location",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-location"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-location"]
 								},
 								"description": "Envia localização GPS.\n\nRequer latitude e longitude obrigatórios."
 							},
@@ -1662,14 +1359,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-voice",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-voice"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-voice"]
 								},
 								"description": "Envia mensagem de áudio/voz.\n\nFormato recomendado: OGG/Opus."
 							},
@@ -1691,14 +1382,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-video",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-video"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-video"]
 								},
 								"description": "Envia vídeo com caption opcional.\n\nFormato recomendado: MP4."
 							},
@@ -1711,14 +1396,8 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-seen?chat_id=5511999999999@c.us&message_id=true_5511999999999@c.us_AAA",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-seen"
-									],
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-seen"],
 									"query": [
 										{
 											"key": "chat_id",
@@ -1750,14 +1429,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-buttons",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-buttons"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-buttons"]
 								},
 								"description": "Envia mensagem com botões interativos.\n\nMáximo 3 botões."
 							},
@@ -1779,14 +1452,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-list",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-list"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-list"]
 								},
 								"description": "Envia menu com lista de opções.\n\nIdeal para catálogos e menus."
 							},
@@ -1808,14 +1475,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-poll",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-poll"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-poll"]
 								},
 								"description": "Envia enquete/votação.\n\nPermite criar pesquisas interativas."
 							},
@@ -1837,14 +1498,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/send-contact",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"send-contact"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "send-contact"]
 								},
 								"description": "Envia contato (vCard).\n\nCompartilha informações de contato."
 							},
@@ -1866,14 +1521,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/messages/forward",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"messages",
-										"forward"
-									]
+									"host": ["{{base_url}}"],
+									"path": ["waha", "messages", "forward"]
 								},
 								"description": "Encaminha mensagem para outro chat.\n\nMantém formatação original."
 							},
@@ -1895,16 +1544,8 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/waha/chats/:chat_id/messages/:message_id",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"waha",
-										"chats",
-										":chat_id",
-										"messages",
-										":message_id"
-									],
+									"host": ["{{base_url}}"],
+									"path": ["waha", "chats", ":chat_id", "messages", ":message_id"],
 									"variable": [
 										{
 											"key": "chat_id",
@@ -1946,13 +1587,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/webhooks/waha",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"webhooks",
-								"waha"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["webhooks", "waha"]
 						},
 						"description": "**NO AUTH** - Recebe webhooks do WAHA.\n\nEventos suportados:\n- `message` - Mensagem recebida\n- `message.ack` - Confirmação de entrega\n- `session.status` - Mudança de status da sessão\n\n⚠️ Endpoint sem autenticação - proteja com firewall/VPN em produção."
 					},
@@ -1968,14 +1604,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/webhooks/waha/logs?limit=100&event_type=message",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"webhooks",
-								"waha",
-								"logs"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["webhooks", "waha", "logs"],
 							"query": [
 								{
 									"key": "limit",
@@ -2004,13 +1634,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/queue/stats",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"queue",
-								"stats"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["queue", "stats"]
 						},
 						"description": "Retorna estatísticas das filas Redis/RQ.\n\n- Total de jobs por status\n- Jobs aguardando processamento\n- Jobs em execução\n- Jobs falhados\n- Jobs concluídos"
 					},
@@ -2023,13 +1648,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/queue/health",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"queue",
-								"health"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["queue", "health"]
 						},
 						"description": "Verifica saúde das filas.\n\nRetorna:\n- Status da conexão Redis\n- Número de workers ativos\n- Latência da fila"
 					},
@@ -2042,14 +1662,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/queue/jobs/:job_id",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"queue",
-								"jobs",
-								":job_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["queue", "jobs", ":job_id"],
 							"variable": [
 								{
 									"key": "job_id",
@@ -2068,13 +1682,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/queue/failed?limit=50",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"queue",
-								"failed"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["queue", "failed"],
 							"query": [
 								{
 									"key": "limit",
@@ -2093,15 +1702,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/queue/jobs/:job_id/retry",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"queue",
-								"jobs",
-								":job_id",
-								"retry"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["queue", "jobs", ":job_id", "retry"],
 							"variable": [
 								{
 									"key": "job_id",
@@ -2120,15 +1722,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/queue/jobs/:job_id/cancel",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"queue",
-								"jobs",
-								":job_id",
-								"cancel"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["queue", "jobs", ":job_id", "cancel"],
 							"variable": [
 								{
 									"key": "job_id",
@@ -2147,13 +1742,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/queue/retry-failed",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"queue",
-								"retry-failed"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["queue", "retry-failed"]
 						},
 						"description": "Reprocessa todos os jobs falhados.\n\n⚠️ Use com cuidado - pode gerar muita carga."
 					},
@@ -2166,13 +1756,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/queue/clear-failed",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"queue",
-								"clear-failed"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["queue", "clear-failed"]
 						},
 						"description": "Remove todos os jobs falhados da fila.\n\n⚠️ Ação irreversível!"
 					},
@@ -2190,13 +1775,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/jobs/reengagement",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"jobs",
-								"reengagement"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["jobs", "reengagement"]
 						},
 						"description": "**Admin only** - Dispara job de reengajamento manual.\n\nO job:\n- Busca conversas inativas (>48h sem mensagens)\n- Envia mensagens automáticas de reengajamento\n- Atualiza status para AWAITING_RESPONSE\n\nNormalmente executado via cron, mas pode ser disparado manualmente."
 					},
@@ -2223,13 +1803,8 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/ai/process-message",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"ai",
-								"process-message"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["ai", "process-message"]
 						},
 						"description": "Processa mensagem e gera resposta com Gemini AI.\n\nFluxo completo:\n1. Busca/cria conversa\n2. Salva mensagem inbound\n3. Busca contexto no ChromaDB\n4. Detecta intenção\n5. Gera resposta com Gemini\n6. Atualiza score de maturidade\n7. Envia resposta via WAHA\n8. Salva tudo no banco"
 					},
@@ -2242,13 +1817,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/ai/stats",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"ai",
-								"stats"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["ai", "stats"]
 						},
 						"description": "Retorna estatísticas de uso da IA.\n\n- Total de conversas\n- Total de interações LLM\n- Tokens consumidos\n- Latência média\n- Documentos no ChromaDB"
 					},
@@ -2266,12 +1836,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/notifications?unread_only=false&limit=50",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"notifications"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["notifications"],
 							"query": [
 								{
 									"key": "unread_only",
@@ -2296,13 +1862,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/notifications/unread-count",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"notifications",
-								"unread-count"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["notifications", "unread-count"]
 						},
 						"description": "Retorna contador de notificações não lidas.\n\nÚtil para badges de notificação na UI."
 					},
@@ -2315,14 +1876,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/notifications/:notification_id/read",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"notifications",
-								":notification_id",
-								"read"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["notifications", ":notification_id", "read"],
 							"variable": [
 								{
 									"key": "notification_id",
@@ -2346,12 +1901,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/audit-logs?entity_type=Lead&limit=100",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"audit-logs"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["audit-logs"],
 							"query": [
 								{
 									"key": "entity_type",
@@ -2388,15 +1939,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/audit-logs/entity/:entity_type/:entity_id?limit=50",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"audit-logs",
-								"entity",
-								":entity_type",
-								":entity_id"
-							],
+							"host": ["{{base_url}}"],
+							"path": ["audit-logs", "entity", ":entity_type", ":entity_id"],
 							"query": [
 								{
 									"key": "limit",
@@ -2416,516 +1960,6 @@
 							]
 						},
 						"description": "**Admin only** - Retorna histórico completo de ações em uma entidade.\n\nMostra todas as mudanças (criação, atualização, deleção) com:\n- Quem fez\n- Quando\n- O que mudou (old_value -> new_value)\n- IP de origem"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Topics",
-			"item": [
-				{
-					"name": "Create Topic",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Botox\",\n  \"description\": \"Procedimento de aplicação de toxina botulínica para redução de rugas e linhas de expressão\",\n  \"category\": \"procedimentos_esteticos\",\n  \"active\": true\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/topics",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"topics"
-							]
-						},
-						"description": "Criar novo tópico (categoria genérica para organizar playbooks).\n\nExemplos de tópicos:\n- Botox\n- Preenchimento Labial\n- Clareamento Dental\n- Agendamento de Consultas\n- Dúvidas Frequentes"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Topic",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/topics/{{topic_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"topics",
-								"{{topic_id}}"
-							]
-						},
-						"description": "Buscar tópico por ID."
-					},
-					"response": []
-				},
-				{
-					"name": "List Topics",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/topics?active_only=false&skip=0&limit=100",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"topics"
-							],
-							"query": [
-								{
-									"key": "active_only",
-									"value": "false",
-									"description": "Filtrar apenas tópicos ativos"
-								},
-								{
-									"key": "skip",
-									"value": "0",
-									"description": "Offset para paginação"
-								},
-								{
-									"key": "limit",
-									"value": "100",
-									"description": "Limite de resultados"
-								}
-							]
-						},
-						"description": "Listar todos os tópicos com filtros opcionais."
-					},
-					"response": []
-				},
-				{
-					"name": "Update Topic",
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"description\": \"Procedimento minimamente invasivo de toxina botulínica\",\n  \"active\": true\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/topics/{{topic_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"topics",
-								"{{topic_id}}"
-							]
-						},
-						"description": "Atualizar campos do tópico. Apenas campos fornecidos serão alterados."
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Topic",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/topics/{{topic_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"topics",
-								"{{topic_id}}"
-							]
-						},
-						"description": "Deletar tópico. CASCADE: Deleta todos os playbooks e steps associados."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Playbooks",
-			"item": [
-				{
-					"name": "Create Playbook",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"topic_id\": \"{{topic_id}}\",\n  \"name\": \"Botox - Fluxo Completo de Atendimento\",\n  \"description\": \"Sequência de mensagens para apresentar o procedimento de botox, incluindo explicação, fotos antes/depois, valores e agendamento\",\n  \"active\": true\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbooks",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbooks"
-							]
-						},
-						"description": "Criar novo playbook.\n\n**Playbooks** são sequências organizadas de mensagens sobre um tópico específico.\n\nO playbook é automaticamente indexado no ChromaDB para busca semântica."
-					},
-					"response": []
-				},
-				{
-					"name": "Search Playbooks (RAG)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbooks/search?query=botox procedimento valor antes depois&top_k=3&active_only=true",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbooks",
-								"search"
-							],
-							"query": [
-								{
-									"key": "query",
-									"value": "botox procedimento valor antes depois",
-									"description": "Busca em linguagem natural"
-								},
-								{
-									"key": "top_k",
-									"value": "3",
-									"description": "Número de resultados (máx 10)"
-								},
-								{
-									"key": "active_only",
-									"value": "true",
-									"description": "Apenas playbooks ativos"
-								}
-							]
-						},
-						"description": "**Busca Semântica com RAG** (Retrieval Augmented Generation).\n\nUsa ChromaDB + embeddings para encontrar playbooks relevantes.\n\nExemplos de queries:\n- \"botox preço procedimento\"\n- \"clareamento dental informações\"\n- \"preenchimento labial antes depois fotos\"\n- \"agendar consulta avaliação\"\n\nRetorna playbooks ordenados por score de relevância (0-1)."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Playbook",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbooks/{{playbook_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbooks",
-								"{{playbook_id}}"
-							]
-						},
-						"description": "Buscar playbook por ID."
-					},
-					"response": []
-				},
-				{
-					"name": "List Playbooks by Topic",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbooks/topic/{{topic_id}}?active_only=false",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbooks",
-								"topic",
-								"{{topic_id}}"
-							],
-							"query": [
-								{
-									"key": "active_only",
-									"value": "false",
-									"description": "Filtrar apenas ativos"
-								}
-							]
-						},
-						"description": "Listar todos os playbooks de um tópico específico."
-					},
-					"response": []
-				},
-				{
-					"name": "Update Playbook",
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Botox - Fluxo Completo v2\",\n  \"description\": \"Fluxo atualizado com novos preços e fotos\",\n  \"active\": true\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbooks/{{playbook_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbooks",
-								"{{playbook_id}}"
-							]
-						},
-						"description": "Atualizar playbook.\n\n**IMPORTANTE**: Atualização reindexa automaticamente no ChromaDB."
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Playbook",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbooks/{{playbook_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbooks",
-								"{{playbook_id}}"
-							]
-						},
-						"description": "Deletar playbook.\n\nCADERNO:\n- Deleta steps associados\n- Remove embedding do ChromaDB"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Playbook Steps",
-			"item": [
-				{
-					"name": "Add Step",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"playbook_id\": \"{{playbook_id}}\",\n  \"message_id\": \"{{message_id}}\",\n  \"step_order\": null,\n  \"context_hint\": \"Primeiro, enviar explicação sobre o que é botox e como funciona\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbook-steps",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbook-steps"
-							]
-						},
-						"description": "Adicionar step ao playbook.\n\n**step_order**: Se null, é adicionado no final automaticamente.\n**context_hint**: Dica para o LLM sobre quando usar este step."
-					},
-					"response": []
-				},
-				{
-					"name": "List Playbook Steps",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbook-steps/playbook/{{playbook_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbook-steps",
-								"playbook",
-								"{{playbook_id}}"
-							]
-						},
-						"description": "Listar todos os steps de um playbook, ordenados por step_order."
-					},
-					"response": []
-				},
-				{
-					"name": "List Steps with Details (for LLM)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbook-steps/playbook/{{playbook_id}}/details",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbook-steps",
-								"playbook",
-								"{{playbook_id}}",
-								"details"
-							]
-						},
-						"description": "Listar steps com TODOS os detalhes das mensagens.\n\n**Uso**: Endpoint otimizado para o LLM consumir.\n\nRetorna:\n- Step order e context_hint\n- Message type, title, description, tags\n- Message content (text, media URL, caption, etc.)\n\nO LLM usa isso para decidir qual mensagem enviar."
-					},
-					"response": []
-				},
-				{
-					"name": "Reorder Steps",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"step_id_order\": [\n    [\"step_id_1\", 1],\n    [\"step_id_2\", 2],\n    [\"step_id_3\", 3],\n    [\"step_id_4\", 4]\n  ]\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbook-steps/reorder",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbook-steps",
-								"reorder"
-							]
-						},
-						"description": "Reordenar múltiplos steps de uma vez.\n\nUse para reorganizar a sequência de mensagens no playbook."
-					},
-					"response": []
-				},
-				{
-					"name": "Update Step",
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"step_order\": 5,\n  \"context_hint\": \"Enviar apenas se cliente perguntar especificamente sobre valores\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbook-steps/{{step_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbook-steps",
-								"{{step_id}}"
-							]
-						},
-						"description": "Atualizar step order ou context hint."
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Step",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/playbook-steps/{{step_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"playbook-steps",
-								"{{step_id}}"
-							]
-						},
-						"description": "Deletar step.\n\nAutomaticamente reindexa o playbook no ChromaDB."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Message Descriptions (AI)",
-			"item": [
-				{
-					"name": "Generate AI Description",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/messages/{{message_id}}/generate-description?use_gemini_vision=true",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"messages",
-								"{{message_id}}",
-								"generate-description"
-							],
-							"query": [
-								{
-									"key": "use_gemini_vision",
-									"value": "true",
-									"description": "Usar Gemini Vision para imagens/vídeos"
-								}
-							]
-						},
-						"description": "**Gerar descrição AI com Gemini Vision**.\n\nPara mensagens de:\n- **Imagem**: Analisa conteúdo visual\n- **Vídeo**: Analisa thumbnail/preview\n- **Texto**: Analisa conteúdo textual\n- **Documento**: Analisa nome e tipo\n\nRetorna:\n- `generated_title`: Título descritivo (máx 50 chars)\n- `generated_description`: Descrição detalhada (100-200 palavras)\n- `suggested_tags`: Tags relevantes (comma-separated)\n\n**Uso típico**:\n1. Admin faz upload de imagem\n2. Clica \"Gerar Descrição com AI\"\n3. Gemini Vision analisa\n4. Admin revisa e edita se necessário\n5. Salva mensagem com descrição\n\nIsso ajuda o LLM a entender o conteúdo das mensagens nos playbooks."
 					},
 					"response": []
 				}

@@ -1,7 +1,7 @@
 """
 Lead Service - Business logic for lead management.
 
-Este service orquestra operações de leads e transições de status.
+This service orchestrates lead operations and status transitions.
 """
 
 import logging
@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__)
 
 class LeadService:
     """
-    Service para gerenciar leads (business logic).
+    Service to manage leads (business logic).
     
-    Responsabilidades:
-    - CRUD de leads
-    - Transições de status
-    - Atribuição para secretárias
-    - Conversão e perda de leads
+    Responsibilities:
+    - Lead CRUD operations
+    - Status transitions
+    - Assignment to secretaries
+    - Lead conversion and loss tracking
     """
 
     def __init__(self, db: Session):
@@ -40,15 +40,15 @@ class LeadService:
         email: Optional[str] = None,
     ) -> Lead:
         """
-        Criar lead a partir de conversa.
+        Create lead from conversation.
         
         Args:
-            phone_number: Número de telefone
-            name: Nome do lead
-            email: Email (opcional)
+            phone_number: Phone number
+            name: Lead name
+            email: Email (optional)
             
         Returns:
-            Lead criado
+            Created lead
         """
         existing = self.repo.get_by_phone(phone_number)
         if existing:
@@ -74,18 +74,18 @@ class LeadService:
         new_score: int,
     ) -> Lead:
         """
-        Atualizar score de maturidade do lead.
+        Update lead maturity score.
         
         Args:
-            lead_id: ID do lead
-            new_score: Novo score (0-100)
+            lead_id: Lead ID
+            new_score: New score (0-100)
             
         Returns:
-            Lead atualizado
+            Updated lead
             
         Raises:
-            NotFoundException: Se lead não existir
-            BusinessRuleError: Se score inválido
+            NotFoundException: If lead not found
+            BusinessRuleError: If score is invalid
         """
         if not 0 <= new_score <= 100:
             raise BusinessRuleError("Maturity score must be between 0 and 100")
@@ -193,14 +193,14 @@ class LeadService:
         limit: int = 50,
     ) -> list[Lead]:
         """
-        Obter leads por status.
+        Get leads by status.
         
         Args:
-            status: Status dos leads
-            limit: Número máximo de resultados
+            status: Lead status
+            limit: Maximum number of results
             
         Returns:
-            Lista de leads
+            List of leads
         """
         # Buscar todos os leads e filtrar por status
         all_leads = self.repo.get_all()
@@ -213,23 +213,67 @@ class LeadService:
 
     def get_unassigned_leads(self, limit: int = 50) -> list[Lead]:
         """
-        Obter leads não atribuídos.
+        Get unassigned leads.
         
         Args:
-            limit: Número máximo de resultados
+            limit: Maximum number of results
             
         Returns:
-            Lista de leads sem atribuição
+            List of leads without assignment
         """
         all_leads = self.repo.get_all()
         
-        # Filtrar não atribuídos
+        # Filter unassigned
         unassigned = [
             lead for lead in all_leads
             if lead.assigned_to_user_id is None
         ]
         
         return unassigned[:limit]
+    
+    def list_leads(
+        self,
+        status: Optional[LeadStatus] = None,
+        assigned_to_user_id: Optional[int] = None,
+        min_score: Optional[int] = None,
+        unassigned_only: bool = False,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Lead], int]:
+        """
+        List leads with multiple filters.
+        
+        Args:
+            status: Filter by lead status
+            assigned_to_user_id: Filter by assigned user
+            min_score: Minimum maturity score
+            unassigned_only: Show only unassigned leads
+            limit: Maximum number of results
+            offset: Number of results to skip
+            
+        Returns:
+            Tuple of (leads list, total count)
+        """
+        all_leads = self.repo.get_all()
+        
+        # Apply filters
+        filtered = all_leads
+        
+        if status:
+            filtered = [l for l in filtered if l.status == status]
+        
+        if unassigned_only:
+            filtered = [l for l in filtered if l.assigned_to_user_id is None]
+        elif assigned_to_user_id is not None:
+            filtered = [l for l in filtered if l.assigned_to_user_id == assigned_to_user_id]
+        
+        if min_score is not None:
+            filtered = [l for l in filtered if l.maturity_score >= min_score]
+        
+        total = len(filtered)
+        paginated = filtered[offset:offset + limit]
+        
+        return paginated, total
 
     def auto_assign_lead(self, lead_id: str) -> Optional[Lead]:
         """

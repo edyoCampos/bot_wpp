@@ -1,0 +1,415 @@
+"""
+Dashboard & Metrics Controller
+
+Endpoints REST para visualização de métricas e dashboards.
+
+Autenticação: JWT obrigatória
+Autorização: Role-based (admin vê tudo, secretária vê apenas suas métricas)
+"""
+
+from datetime import datetime, timedelta
+from typing import Optional
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from sqlalchemy.orm import Session
+
+from robbot.adapters.repositories.user_repository import UserRepository
+from robbot.repositories.analytics.analytics_repository import AnalyticsRepository
+from robbot.services.analytics.metrics_service import MetricsService
+from robbot.schemas.metrics_schemas import (
+    DashboardSummaryResponse,
+    ConversionRateResponse,
+    ConversionFunnelResponse,
+    TimeToConversionResponse,
+    ResponseTimeResponse,
+    MessageVolumeResponse,
+    BotAutonomyResponse,
+    CacheStatsSchema,
+)
+from robbot.api.v1.dependencies import get_current_user, get_db
+from robbot.infra.redis.client import get_redis_client
+from robbot.infra.db.models.user_model import UserModel
+from robbot.domain.enums import Role
+from robbot.common.utils import get_logger
+
+logger = get_logger(__name__)
+
+router = APIRouter(prefix="/metrics", tags=["Metrics & Dashboard"])
+
+
+# =============================================================================
+# DEPENDENCY INJECTION
+# =============================================================================
+
+def get_metrics_service(
+    db_session: Session = Depends(get_db),
+) -> MetricsService:
+    """Injeta MetricsService com dependências"""
+    analytics_repo = AnalyticsRepository(db_session)
+    redis_client = get_redis_client()
+    return MetricsService(analytics_repo, redis_client)
+
+
+def check_admin_role(current_user: UserModel = Depends(get_current_user)):
+    """Verifica se o usuário é admin"""
+    if current_user.role != Role.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado. Apenas administradores."
+        )
+    return current_user
+
+
+def get_filtered_user_id(
+    user_id: Optional[str] = Query(None, description="UUID do usuário (apenas admin pode filtrar)"),
+    current_user: UserModel = Depends(get_current_user),
+) -> Optional[UUID]:
+    """
+    Retorna user_id para filtro baseado em permissões.
+    
+    - Admin: pode filtrar por user_id ou ver global (None)
+    - User: vê apenas suas próprias métricas
+    """
+    if current_user.role == Role.ADMIN:
+        return UUID(user_id) if user_id else None
+    else:
+        # User comum só vê suas próprias métricas
+        return current_user.id
+
+
+# =============================================================================
+# QUERY PARAMETERS HELPERS
+# =============================================================================
+
+def parse_date_range(
+    start_date: Optional[str] = Query(None, description="Data inicial (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="Data final (YYYY-MM-DD)"),
+    period: str = Query("30d", description="Período pré-definido: 7d, 30d, 90d, 1y"),
+) -> tuple[datetime, datetime]:
+    """
+    Parse de datas com fallback para períodos pré-definidos.
+    
+    Prioridade:
+    1. start_date e end_date explícitos
+    2. Período pré-definido (7d, 30d, etc.)
+    
+    Returns:
+        (start_datetime, end_datetime)
+    """
+    if start_date and end_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date).replace(hour=0, minute=0, second=0)
+            end_dt = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
+            return start_dt, end_dt
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Formato de data inválido. Use YYYY-MM-DD"
+            )
+    
+    # Períodos pré-definidos
+    end_dt = datetime.now().replace(hour=23, minute=59, second=59)
+    
+    if period == "7d":
+        start_dt = end_dt - timedelta(days=7)
+    elif period == "30d":
+        start_dt = end_dt - timedelta(days=30)
+    elif period == "90d":
+        start_dt = end_dt - timedelta(days=90)
+    elif period == "1y":
+        start_dt = end_dt - timedelta(days=365)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Período inválido: {period}. Use: 7d, 30d, 90d, 1y"
+        )
+    
+    return start_dt, end_dt
+
+
+# =============================================================================
+# DASHBOARD ENDPOINTS
+# =============================================================================
+
+@router.get(
+    "/dashboard/summary",
+    response_model=DashboardSummaryResponse,
+    summary="Dashboard Summary (KPIs principais)",
+)
+def get_dashboard_summary(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    period: str = Query("30d"),
+    current_user: UserModel = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """KPIs: conversão, mensagens, tempo resposta. Cache 5min."""
+    start_dt, end_dt = parse_date_range(start_date, end_date, period)
+    return metrics_service.get_dashboard_summary(start_dt, end_dt)
+
+
+# =============================================================================
+# CONVERSION ANALYTICS ENDPOINTS
+# =============================================================================
+
+@router.get(
+    "/conversion-rate",
+    response_model=ConversionRateResponse,
+    summary="Taxa de Conversão",
+    description="Taxa de conversão global ou segmentada (por secretária, procedimento, etc.)"
+)
+async def get_conversion_rate(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    period: str = Query("30d"),
+    segment_by: Optional[str] = Query(None, description="Segmentar por: assigned_to"),
+    current_user: UserModel = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Taxa de conversão de leads em agendamentos.
+    
+    Segmentações disponíveis:
+    - assigned_to: Por secretária responsável
+    
+    Cache: 15 minutos
+    """
+    start_dt, end_dt = parse_date_range(start_date, end_date, period)
+    
+    # Validar segment_by
+    if segment_by and segment_by not in ["assigned_to"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Segmento inválido: {segment_by}. Use: assigned_to"
+        )
+    
+    result = await metrics_service.get_conversion_rate(start_dt, end_dt, segment_by)
+    return result
+
+
+@router.get(
+    "/conversion-funnel",
+    response_model=ConversionFunnelResponse,
+    summary="Funil de Conversão",
+    description="Análise de funil com drop-off por etapa: criados → engajados → qualificados → handoff → convertidos"
+)
+async def get_conversion_funnel(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    period: str = Query("30d"),
+    current_user: UserModel = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Funil de conversão com 5 etapas.
+    
+    Etapas:
+    1. Leads criados (NEW)
+    2. Engajados (respondeu pelo menos 1 msg)
+    3. Qualificados (maturity_score >= 60)
+    4. Handoff (transferido para humano)
+    5. Convertidos (CONVERTED)
+    
+    Cache: 15 minutos
+    """
+    start_dt, end_dt = parse_date_range(start_date, end_date, period)
+    
+    result = await metrics_service.get_conversion_funnel(start_dt, end_dt)
+    return result
+
+
+@router.get(
+    "/time-to-conversion",
+    response_model=TimeToConversionResponse,
+    summary="Tempo até Conversão",
+    description="Estatísticas de tempo desde primeiro contato até agendamento"
+)
+async def get_time_to_conversion(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    period: str = Query("30d"),
+    current_user: UserModel = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Tempo médio, mediana, min, max e p95 até conversão.
+    
+    Útil para identificar:
+    - Velocidade do processo de vendas
+    - Benchmarks de performance
+    - Oportunidades de otimização
+    
+    Cache: 15 minutos
+    """
+    start_dt, end_dt = parse_date_range(start_date, end_date, period)
+    
+    result = await metrics_service.get_time_to_conversion(start_dt, end_dt)
+    return result
+
+
+# =============================================================================
+# PERFORMANCE ANALYTICS ENDPOINTS
+# =============================================================================
+
+@router.get(
+    "/response-time",
+    response_model=ResponseTimeResponse,
+    summary="Tempo de Resposta",
+    description="Estatísticas de tempo de resposta humano (após handoff)"
+)
+async def get_response_time(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    period: str = Query("30d"),
+    user_id: Optional[str] = Query(None, description="UUID do usuário (apenas admin)"),
+    current_user: UserModel = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Tempo de resposta após handoff para humano.
+    
+    Métricas: média, mediana, P95, P99
+    
+    Filtro por usuário:
+    - Admin: Pode especificar user_id ou ver global (null)
+    - Secretária: Vê apenas suas próprias métricas
+    
+    Cache: 5 minutos
+    """
+    start_dt, end_dt = parse_date_range(start_date, end_date, period)
+    
+    # Aplicar filtro de user_id baseado em role
+    filtered_user_id = await get_filtered_user_id(user_id, current_user)
+    
+    result = await metrics_service.get_response_time_stats(start_dt, end_dt, filtered_user_id)
+    return result
+
+
+@router.get(
+    "/message-volume",
+    response_model=MessageVolumeResponse,
+    summary="Volume de Mensagens",
+    description="Volume de mensagens ao longo do tempo (incoming/outgoing)"
+)
+async def get_message_volume(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    period: str = Query("30d"),
+    granularity: str = Query("day", description="Granularidade: hour, day, week"),
+    current_user: UserModel = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Volume de mensagens agregado por período.
+    
+    Granularidade:
+    - hour: Por hora (útil para identificar horários de pico)
+    - day: Por dia (visão semanal/mensal)
+    - week: Por semana (visão trimestral/anual)
+    
+    Cache: 15 minutos
+    """
+    start_dt, end_dt = parse_date_range(start_date, end_date, period)
+    
+    # Validar granularity
+    if granularity not in ["hour", "day", "week"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Granularidade inválida: {granularity}. Use: hour, day, week"
+        )
+    
+    result = await metrics_service.get_message_volume(start_dt, end_dt, granularity)
+    return result
+
+
+# =============================================================================
+# BOT PERFORMANCE ENDPOINTS
+# =============================================================================
+
+@router.get(
+    "/bot-autonomy",
+    response_model=BotAutonomyResponse,
+    summary="Autonomia do Bot",
+    description="Taxa de conversas resolvidas pelo bot sem intervenção humana"
+)
+async def get_bot_autonomy(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    period: str = Query("30d"),
+    current_user: UserModel = Depends(check_admin_role),  # Apenas admin
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Taxa de autonomia do bot.
+    
+    Calcula:
+    - Total de conversas
+    - Conversas resolvidas apenas pelo bot
+    - Conversas que precisaram de handoff
+    - Taxa de autonomia (%)
+    
+    Disponível apenas para: ADMIN
+    Cache: 15 minutos
+    """
+    start_dt, end_dt = parse_date_range(start_date, end_date, period)
+    
+    result = await metrics_service.get_bot_autonomy_rate(start_dt, end_dt)
+    return result
+
+
+# =============================================================================
+# CACHE MANAGEMENT ENDPOINTS
+# =============================================================================
+
+@router.get(
+    "/cache/stats",
+    response_model=CacheStatsSchema,
+    summary="Estatísticas do Cache",
+    description="Estatísticas de hits/misses do cache Redis"
+)
+async def get_cache_stats(
+    current_user: UserModel = Depends(check_admin_role),  # Apenas admin
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Estatísticas do cache de métricas.
+    
+    Retorna:
+    - Total de hits (cache encontrado)
+    - Total de misses (cache não encontrado)
+    - Hit rate (%)
+    
+    Disponível apenas para: ADMIN
+    """
+    result = await metrics_service.get_cache_stats()
+    return result
+
+
+@router.post(
+    "/cache/invalidate",
+    summary="Invalidar Cache",
+    description="Invalida cache de uma métrica específica ou todo o cache"
+)
+async def invalidate_cache(
+    metric_name: Optional[str] = Query(None, description="Nome da métrica (null = todas)"),
+    current_user: UserModel = Depends(check_admin_role),  # Apenas admin
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Invalida cache de métricas.
+    
+    Uso:
+    - Com metric_name: Invalida apenas essa métrica
+    - Sem metric_name: Invalida TODO o cache de métricas
+    
+    Disponível apenas para: ADMIN
+    
+    ⚠️ CUIDADO: Invalidar todo o cache pode causar pico de queries no banco
+    """
+    if metric_name:
+        await metrics_service.invalidate_metric(metric_name)
+        return {"message": f"Cache da métrica '{metric_name}' invalidado com sucesso"}
+    else:
+        await metrics_service.invalidate_all_metrics()
+        return {"message": "Todo o cache de métricas foi invalidado"}

@@ -189,3 +189,25 @@ class ConversationRepository:
         """
         stmt = select(ConversationModel).order_by(ConversationModel.created_at.desc())
         return list(self.db.scalars(stmt).all())
+
+    def get_by_status(
+        self,
+        status: ConversationStatus,
+        limit: int = 100,
+    ) -> list[ConversationModel]:
+        """Get conversations by status.
+
+        Args:
+            status: Conversation status to filter by
+            limit: Max number of conversations to return
+
+        Returns:
+            List of conversations with given status
+        """
+        stmt = (
+            select(ConversationModel)
+            .where(ConversationModel.status == status)
+            .order_by(ConversationModel.updated_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).all())

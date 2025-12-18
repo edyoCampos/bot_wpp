@@ -140,9 +140,38 @@ class ConversationOrchestrator:
                     session, chat_id, phone_number
                 )
                 
+                # BOT SILENCIA se humano está conversando
+                if conversation.status in [
+                    ConversationStatus.ACTIVE_HUMAN,
+                    ConversationStatus.PENDING_HANDOFF,
+                    ConversationStatus.COMPLETED,
+                    ConversationStatus.CLOSED,
+                ]:
+                    # Apenas salva mensagem, não gera resposta automática
+                    await self._save_inbound_message(
+                        session, conversation.id, message_text
+                    )
+                    logger.info(
+                        f"🤐 Bot silenciado: conversa em status {conversation.status} "
+                        f"(conv_id={conversation.id})"
+                    )
+                    
+                    # TODO: Notificar atendente via WebSocket
+                    # await self.notification_service.notify_user(
+                    #     conversation.assigned_to, 
+                    #     f"Nova mensagem de {conversation.phone_number}"
+                    # )
+                    
+                    session.commit()
+                    return {
+                        "conversation_id": conversation.id,
+                        "response_sent": False,
+                        "bot_silenced": True,
+                        "status": conversation.status.value,
+                    }
+                
                 # Processar mídia conforme tipo
                 transcription = None
-                video_description = None
                 
                 # Se é vídeo: transcrever áudio + descrever visual
                 if has_video and video_url:
@@ -196,6 +225,10 @@ class ConversationOrchestrator:
                     session.flush()
                     logger.info(f"🚨 Urgência detectada (conv_id={conversation.id})")
                 
+                # Extrair nome do paciente se ainda não temos
+                if conversation.lead and conversation.lead.name == conversation.lead.phone_number:
+                    await self._try_extract_name(session, message_text, context_text, conversation)
+                
                 response_data = await self._generate_response(
                     message_text=message_text,
                     intent=intent,
@@ -205,9 +238,54 @@ class ConversationOrchestrator:
                 
                 response_text = response_data["response"]
                 
+                # Se ainda não temos nome E score >= 20, solicitar de forma natural
+                should_ask_name = (
+                    conversation.lead 
+                    and conversation.lead.name == conversation.lead.phone_number
+                    and conversation.lead.maturity_score >= 20
+                    and conversation.lead.maturity_score < 50
+                )
+                
+                if should_ask_name:
+                    name_request = await self._generate_name_request(
+                        context_text, 
+                        conversation.lead.maturity_score
+                    )
+                    if name_request:
+                        response_text = f"{response_text}\n\n{name_request}"
+                
                 new_score = await self._update_maturity_score(
                     session, conversation, message_text, intent
                 )
+                
+                # Verificar se precisa escalar para humano
+                should_escalate = await self._check_escalation_needed(
+                    conversation, intent, message_text, new_score
+                )
+                
+                if should_escalate:
+                    # Trigger handoff antes de responder
+                    from robbot.services.handoff_service import HandoffService
+                    handoff_service = HandoffService(
+                        ConversationRepository(session),
+                        LeadRepository(session)
+                    )
+                    
+                    escalation_reason = "score_high" if new_score >= 85 else "bot_confused"
+                    handoff_result = await handoff_service.trigger_handoff(
+                        session=session,
+                        conversation_id=conversation.id,
+                        reason=escalation_reason,
+                        score=new_score,
+                    )
+                    
+                    # Sobrescrever resposta com mensagem de transição
+                    response_text = handoff_result["message"]
+                    
+                    logger.info(
+                        f"🚀 Handoff automático triggered: conv={conversation.id}, "
+                        f"reason={escalation_reason}, score={new_score}"
+                    )
                 
                 await self._save_to_chroma(
                     conversation.id,
@@ -405,6 +483,85 @@ class ConversationOrchestrator:
         except Exception as e:
             logger.warning(f"⚠️ Falha ao buscar contexto: {e}")
             raise VectorDBError(f"Failed to get context: {e}")
+
+    async def _try_extract_name(
+        self, 
+        session: Any,
+        message: str, 
+        context: str, 
+        conversation: Conversation
+    ) -> None:
+        """
+        Tentar extrair nome do paciente da mensagem de forma inteligente.
+        Atualiza o lead se encontrar nome com confiança >= 70%.
+        """
+        try:
+            prompt = self.prompt_templates.format_name_extraction_prompt(message, context)
+            response = self.gemini_client.generate_response(prompt)
+            
+            # Parse JSON response
+            import json
+            result = json.loads(response["response"].strip())
+            
+            name = result.get("name")
+            confidence = result.get("confidence", 0)
+            
+            if name and name != "null" and confidence >= 70:
+                # Atualizar nome do lead
+                lead_repo = LeadRepository(session)
+                conversation.lead.name = name
+                lead_repo.update(conversation.lead)
+                session.flush()
+                
+                logger.info(
+                    f"✓ Nome extraído: '{name}' (confiança={confidence}%, "
+                    f"fonte={result.get('source')})"
+                )
+        
+        except (json.JSONDecodeError, LLMError) as e:
+            logger.debug(f"Não foi possível extrair nome: {e}")
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao tentar extrair nome: {e}")
+
+    async def _generate_name_request(
+        self, 
+        context: str, 
+        score: int
+    ) -> str | None:
+        """
+        Gerar pergunta natural para descobrir o nome do paciente.
+        Integra a pergunta de forma fluida no fluxo SPIN.
+        
+        Returns:
+            str com a pergunta ou None se não for apropriado perguntar
+        """
+        try:
+            # Determinar fase SPIN baseada no score
+            if score < 30:
+                spin_phase = "SITUATION"
+            elif score < 50:
+                spin_phase = "PROBLEM"  
+            elif score < 75:
+                spin_phase = "IMPLICATION"
+            elif score < 85:
+                spin_phase = "NEED_PAYOFF"
+            else:
+                spin_phase = "READY"
+            
+            prompt = self.prompt_templates.format_name_request_prompt(
+                context, spin_phase, score
+            )
+            
+            response = self.gemini_client.generate_response(prompt)
+            name_request = response["response"].strip()
+            
+            logger.info(f"✓ Solicitação de nome gerada (fase={spin_phase}, score={score})")
+            
+            return name_request
+            
+        except LLMError as e:
+            logger.warning(f"⚠️ Falha ao gerar solicitação de nome: {e}")
+            return None
 
     async def _detect_urgency(self, message: str, context: str) -> bool:
         """
@@ -664,6 +821,67 @@ Responda apenas: SIM ou NÃO"""
         except Exception as e:
             logger.warning(f"⚠️ Falha ao registrar interação: {e}")
             raise DatabaseError(f"Failed to register interaction: {e}")
+
+    async def _check_escalation_needed(
+        self,
+        conversation: Conversation,
+        intent: str,
+        message: str,
+        score: int,
+    ) -> bool:
+        """
+        Verifica se precisa escalar para humano.
+        
+        Critérios de escalação:
+        1. Score >= 85 (lead muito maduro)
+        2. 3 ou mais intents OUTRO consecutivos (bot confuso)
+        3. Cliente pede explicitamente falar com humano
+        4. Múltiplas detecções de baixa confiança
+        
+        Args:
+            conversation: Conversa atual
+            intent: Intenção detectada
+            message: Mensagem do cliente
+            score: Score de maturidade atual
+            
+        Returns:
+            bool: True se deve escalar
+        """
+        # Critério 1: Score alto (lead pronto)
+        if score >= 85:
+            logger.info(
+                f"✓ Escalação necessária: score alto ({score}) - conv={conversation.id}"
+            )
+            return True
+        
+        # Critério 2: Cliente pede explicitamente humano
+        human_keywords = [
+            "falar com alguém",
+            "atendente",
+            "pessoa de verdade",
+            "humano",
+            "gerente",
+            "supervisor",
+        ]
+        
+        message_lower = message.lower()
+        if any(keyword in message_lower for keyword in human_keywords):
+            logger.info(
+                f"✓ Escalação necessária: cliente pediu humano - conv={conversation.id}"
+            )
+            return True
+        
+        # Critério 3: Bot confuso (intent OUTRO múltiplas vezes)
+        # TODO: Implementar contador de OUTRO consecutivos
+        # Por ora, apenas detectamos se intent é OUTRO com frequência
+        if intent == "OUTRO":
+            # Na produção, verificaríamos histórico no ChromaDB
+            # Para v1, apenas logamos
+            logger.info(
+                f"⚠️ Intent OUTRO detectado - pode precisar escalação - conv={conversation.id}"
+            )
+        
+        return False
 
     async def _log_llm_interaction(
         self,

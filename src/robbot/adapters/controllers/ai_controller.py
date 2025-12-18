@@ -1,15 +1,19 @@
 """
-AI endpoints para conversação e análise.
+AI endpoints for conversation and analysis.
 
-Este módulo expõe endpoints REST para:
-- Processar mensagens via API
-- Obter estatísticas de IA
-- Gerenciar contextos
+This module exposes REST endpoints for:
+- Processing messages via API
+- Getting AI statistics
+- Managing contexts
 """
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from robbot.adapters.repositories.conversation_repository import ConversationRepository
+from robbot.adapters.repositories.llm_interaction_repository import LLMInteractionRepository
+from robbot.infra.db.session import get_sync_session
+from robbot.infra.vectordb.chroma_client import get_chroma_client
 from robbot.services.conversation_orchestrator import get_conversation_orchestrator
 
 router = APIRouter(prefix="/ai", tags=["AI"])
@@ -121,18 +125,9 @@ async def get_ai_stats() -> AIStatsResponse:
         Estatísticas agregadas
         
     Raises:
-        HTTPException 500: Se falhar ao obter stats
+        HTTPException 500: If fails to get stats
     """
     try:
-        from robbot.adapters.repositories.conversation_repository import (
-            ConversationRepository
-        )
-        from robbot.adapters.repositories.llm_interaction_repository import (
-            LLMInteractionRepository
-        )
-        from robbot.infra.db.session import get_sync_session
-        from robbot.infra.vectordb.chroma_client import get_chroma_client
-        
         with get_sync_session() as session:
             conv_repo = ConversationRepository(session)
             llm_repo = LLMInteractionRepository(session)

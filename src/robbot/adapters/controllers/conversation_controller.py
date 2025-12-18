@@ -12,7 +12,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from robbot.adapters.repositories.conversation_repository import ConversationRepository
+
+from robbot.core.exceptions import NotFoundException
 from robbot.core.security import get_current_user
 from robbot.domain.enums import ConversationStatus, Role
 from robbot.infra.db.session import get_db
@@ -86,27 +87,26 @@ def list_conversations(
     Filters:
     - status: ACTIVE, WAITING_SECRETARY, TRANSFERRED, CLOSED
     - urgent_only: Show only is_urgent=true
-    - assigned_to_me: Show only assigned to authenticated user
+    - assigned_to_me: Show only assigned to current user
     """
-    repo = ConversationRepository(db)
+    service = ConversationService(db)
     
-    # Build filters
-    filters = {}
+    # Parse status filter
+    status_enum = None
     if status:
         try:
-            filters["status"] = ConversationStatus[status.upper()]
+            status_enum = ConversationStatus[status.upper()]
         except KeyError:
             raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
     
-    if urgent_only:
-        filters["is_urgent"] = True
-    
-    if assigned_to_me:
-        filters["assigned_to_user_id"] = current_user.id
-    
-    # Get conversations
-    conversations = repo.find_by_criteria(filters, limit=limit, offset=offset)
-    total = len(repo.find_by_criteria(filters))
+    # Get conversations using service
+    conversations, total = service.list_conversations(
+        status=status_enum,
+        is_urgent=True if urgent_only else None,
+        assigned_to_user_id=current_user["user_id"] if assigned_to_me else None,
+        limit=limit,
+        offset=offset,
+    )
     
     # Convert to response
     conversations_out = [
@@ -139,8 +139,8 @@ def get_conversation(
     
     Requires JWT authentication.
     """
-    repo = ConversationRepository(db)
-    conversation = repo.get_by_id(conversation_id)
+    service = ConversationService(db)
+    conversation = service.get_by_id(conversation_id)
     
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -269,25 +269,19 @@ def update_conversation_notes(
     
     Notes are stored as plain text (max 5000 chars).
     """
-    repo = ConversationRepository(db)
-    conversation = repo.get_by_id(conversation_id)
-    
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+    service = ConversationService(db)
     
     try:
-        conversation = repo.update(
-            conversation_id=conversation.id,
-            data={"notes": request.notes}
-        )
+        conversation = service.update_notes(conversation_id, request.notes)
         
         return {
             "message": "Notes updated successfully",
             "conversation_id": conversation.id,
             "notes": conversation.notes,
         }
+    except NotFoundException:
+        raise HTTPException(status_code=404, detail="Conversation not found")
     except Exception as e:
-        db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update notes: {str(e)}")
 
 
@@ -315,7 +309,7 @@ def export_conversations(
     if export_format != "csv":
         raise HTTPException(status_code=400, detail="Only CSV format is supported")
     
-    repo = ConversationRepository(db)
+    service = ConversationService(db)
     
     # Build filters
     filters = {}
@@ -330,7 +324,7 @@ def export_conversations(
         filters["assigned_to_user_id"] = current_user.id
     
     # Get conversations
-    conversations = repo.find_by_criteria(filters)
+    conversations = service.find_by_criteria(filters)
     
     # Filter by date range
     if start_date:
@@ -410,7 +404,7 @@ def search_conversations(
     )
     
     msg_repo = ConversationMessageRepository(db)
-    conv_repo = ConversationRepository(db)
+    service = ConversationService(db)
     
     # Search messages with full-text query
     # Using simple LIKE for now (can be upgraded to PostgreSQL ts_vector)
@@ -428,7 +422,7 @@ def search_conversations(
     # Get conversations
     conversations = []
     for conv_id in conversation_ids:
-        conv = conv_repo.get_by_id(conv_id)
+        conv = service.get_by_id(conv_id)
         if conv:
             # Filter by user if not admin
             if current_user.role != Role.ADMIN:

@@ -229,14 +229,14 @@ class MessageService:
         """
         try:
             from robbot.services.description_service import DescriptionService
-            desc_service = DescriptionService(self.db)
+            desc_service = DescriptionService(self.repo.db)
             
             # Se é imagem, tentar usar BLIP-2 para análise visual
             if media_type == "image" and media_url:
-                return desc_service._analyze_image_with_blip(media_url, caption)
+                return desc_service.analyze_image_with_blip(media_url, caption)
             
             # Para vídeo ou se BLIP falhar, usar metadata básico
-            return desc_service._generate_file_metadata(filename, caption, media_type)
+            return desc_service.generate_file_metadata(filename, caption, media_type)
             
         except Exception as e:
             import logging
@@ -258,8 +258,8 @@ class MessageService:
         """
         try:
             from robbot.services.description_service import DescriptionService
-            desc_service = DescriptionService(self.db)
-            return desc_service._generate_file_metadata(filename, caption, file_type)
+            desc_service = DescriptionService(self.repo.db)
+            return desc_service.generate_file_metadata(filename, caption, file_type)
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)

@@ -11,7 +11,7 @@ services:
 
     # Carrega variáveis do .env (caso você use)
     env_file:
-      - ../.env
+      - .env
 
     environment:
       TZ: ${POSTGRES_TZ:-UTC}
@@ -71,7 +71,7 @@ services:
     restart: unless-stopped
     
     env_file:
-      - ../.env
+      - .env
     
     environment:
       WAHA_API_KEY: ${WAHA_API_KEY}
@@ -96,7 +96,7 @@ services:
     container_name: api_app
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
 
     environment:
       PYTHONPATH: ${PYTHONPATH:-/app/src}
@@ -146,7 +146,7 @@ services:
     restart: unless-stopped
     
     env_file:
-      - ../.env
+      - .env
 
     environment:
       PYTHONPATH: /app/src

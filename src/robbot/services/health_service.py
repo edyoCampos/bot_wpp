@@ -23,7 +23,7 @@ class HealthService:
         self.health_repo = HealthRepository(db)
         self.alert_service = AlertService(db)
 
-    def get_health(self) -> HealthOut:
+    async def get_health(self) -> HealthOut:
         """
         Checa integrações essenciais (DB, Redis, WAHA, Queue) e retorna um resumo.
         Se houver falha crítica e alerts estiver configurado, persiste alerta.
@@ -54,8 +54,7 @@ class HealthService:
         # Check WAHA health
         try:
             waha_client = get_waha_client()
-            await_result = waha_client.health_check()
-            # Na verdade health_check é async, precisa de await - vou fazer síncrono
+            await waha_client.ping()
             waha_ok = True
         except ExternalServiceError as exc:
             waha_ok = False

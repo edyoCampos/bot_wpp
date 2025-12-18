@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from robbot.api.v1.dependencies import get_current_user, get_db
-from robbot.domain.entities.topic import Topic
 from robbot.schemas.topic import TopicCreate, TopicList, TopicOut, TopicUpdate, DeletedResponse
 from robbot.services.playbook_service import PlaybookService
 
@@ -26,13 +25,12 @@ def create_topic(
     Requires authentication.
     """
     service = PlaybookService(db)
-    topic = Topic(
+    created = service.create_topic(
         name=payload.name,
         description=payload.description,
         category=payload.category,
         active=payload.active,
     )
-    created = service.create_topic(topic)
     return TopicOut.model_validate(created)
 
 

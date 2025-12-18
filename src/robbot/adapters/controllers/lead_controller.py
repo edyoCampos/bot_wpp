@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
-from robbot.adapters.repositories.lead_repository import LeadRepository
 from robbot.core.security import get_current_user
 from robbot.domain.enums import LeadStatus
 from robbot.infra.db.session import get_db
@@ -89,29 +88,23 @@ def list_leads(
     """
     service = LeadService(db)
     
-    # Get leads by filters
-    if unassigned_only:
-        leads = service.get_unassigned_leads()
-    elif status:
+    # Parse status filter
+    status_enum = None
+    if status:
         try:
             status_enum = LeadStatus[status.upper()]
-            leads = service.get_leads_by_status(status_enum)
         except KeyError:
             raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
-    else:
-        repo = LeadRepository(db)
-        leads = repo.get_all()
     
-    # Apply additional filters
-    if assigned_to_me:
-        leads = [l for l in leads if l.assigned_to == current_user.id]
-    
-    if min_score is not None:
-        leads = [l for l in leads if l.maturity_score >= min_score]
-    
-    # Pagination
-    total = len(leads)
-    leads = leads[offset:offset + limit]
+    # Get leads using service with all filters
+    leads, total = service.list_leads(
+        status=status_enum,
+        assigned_to_user_id=current_user["user_id"] if assigned_to_me else None,
+        min_score=min_score,
+        unassigned_only=unassigned_only,
+        limit=limit,
+        offset=offset,
+    )
     
     # Convert to response
     leads_out = [
@@ -143,8 +136,8 @@ def get_lead(
     
     Requires JWT authentication.
     """
-    repo = LeadRepository(db)
-    lead = repo.get_by_id(lead_id)
+    service = LeadService(db)
+    lead = service.repo.get_by_id(lead_id)
     
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
@@ -177,7 +170,7 @@ def create_lead(
     
     try:
         lead = service.create_from_conversation(
-            phone=request.phone_number,
+            phone_number=request.phone_number,
             name=request.name,
             email=request.email,
         )

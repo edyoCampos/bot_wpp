@@ -400,6 +400,58 @@ open htmlcov/index.html
 
 ---
 
+## 🧪 Testes
+
+### Documentação de Testes Completa
+
+O projeto possui documentação extensiva para testes organizados:
+
+| Documento | Propósito | Quando Usar |
+|-----------|-----------|-------------|
+| **[QUICK_START_TESTES.md](QUICK_START_TESTES.md)** | Guia rápido (5 min) | Primeiro teste, setup inicial |
+| **[PLANO_TESTES_CASOS_USO.md](PLANO_TESTES_CASOS_USO.md)** | 44 casos de uso detalhados | Testes completos via Swagger/Postman |
+| **[CHECKLIST_VALIDACAO.md](CHECKLIST_VALIDACAO.md)** | Checklist visual | Acompanhar progresso dos testes |
+| **[RESUMO_CORRECOES_E_TESTES.md](RESUMO_CORRECOES_E_TESTES.md)** | Resumo executivo | Entender correções e plano geral |
+
+### Iniciar Testes Rapidamente
+
+```bash
+# 1. Health check
+curl http://localhost:3333/api/v1/health
+
+# 2. Abrir Swagger
+open http://localhost:3333/docs
+
+# 3. Seguir QUICK_START_TESTES.md
+```
+
+### Postman Collection
+
+```bash
+# Importar no Postman:
+postman/WPP_Bot_API.postman_collection.json
+postman/WPP_Bot_API.postman_environment.json
+
+# Configurar variável {{auth_token}} após login
+```
+
+### Casos de Uso por Fase
+
+- **FASE 1**: Autenticação (5 casos de uso)
+- **FASE 2**: WhatsApp/WAHA (4 casos de uso)
+- **FASE 3**: Playbooks (6 casos de uso)
+- **FASE 4**: Mensagens/Mídia (5 casos de uso) - **Transcrição + BLIP-2**
+- **FASE 5**: Conversas/Leads (5 casos de uso)
+- **FASE 6**: Gemini AI (5 casos de uso) - **SPIN Selling + Tools**
+- **FASE 7**: Escalação (3 casos de uso)
+- **FASE 8**: Tags (2 casos de uso)
+- **FASE 9**: Métricas (3 casos de uso)
+- **FASE 10**: Filas (2 casos de uso)
+
+**Total**: 44 casos de uso organizados cronologicamente
+
+---
+
 ## 🐛 Troubleshooting
 
 ### Porta 5432 já em uso (Windows)

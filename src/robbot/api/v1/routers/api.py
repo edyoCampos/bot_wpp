@@ -7,6 +7,8 @@ from robbot.adapters.controllers import (
     audit_controller,
     auth_controller,
     conversation_controller,
+    dashboard_controller,
+    handoff_controller,
     health_controller,
     job_controller,
     lead_controller,
@@ -44,3 +46,5 @@ api_router.include_router(audit_controller.router, prefix="", tags=["Audit"])
 api_router.include_router(topic_controller.router, prefix="/topics", tags=["Topics"])
 api_router.include_router(playbook_controller.router, prefix="/playbooks", tags=["Playbooks"])
 api_router.include_router(playbook_step_controller.router, prefix="/playbook-steps", tags=["Playbook Steps"])
+api_router.include_router(handoff_controller.router, prefix="", tags=["Handoff"])
+api_router.include_router(dashboard_controller.router, prefix="", tags=["Metrics & Dashboard"])

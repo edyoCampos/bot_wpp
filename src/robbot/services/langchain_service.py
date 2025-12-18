@@ -1,10 +1,10 @@
 """
 LangChain service for conversation memory and orchestration.
 
-Este módulo fornece integração com LangChain para:
-- Gerenciar memória de conversas
-- Criar chains com contexto persistente
-- Orquestrar fluxo de conversação
+This module provides LangChain integration for:
+- Managing conversation memory
+- Creating chains with persistent context
+- Orchestrating conversation flow
 """
 
 import logging
@@ -25,16 +25,16 @@ logger = logging.getLogger(__name__)
 
 class LangChainService:
     """
-    Service para LangChain conversation chains.
+    Service for LangChain conversation chains.
     
-    Responsabilidades:
-    - Criar e gerenciar ConversationChain
-    - Manter memória de conversas
-    - Integrar Gemini via LangChain
+    Responsibilities:
+    - Create and manage ConversationChain
+    - Maintain conversation memory
+    - Integrate Gemini via LangChain
     """
 
     def __init__(self):
-        """Inicializar LangChainService com Gemini."""
+        """Initialize LangChainService with Gemini."""
         try:
             # Configurar LLM (Gemini via LangChain)
             self.llm = ChatGoogleGenerativeAI(
@@ -60,18 +60,18 @@ class LangChainService:
         memory_key: str = "history",
     ) -> InMemoryChatMessageHistory:
         """
-        Criar chain de conversa com memória persistente.
+        Create conversation chain with persistent memory.
         
         Args:
-            conversation_id: ID único da conversa
-            system_prompt: Prompt de sistema (opcional)
-            memory_key: Chave para memória no contexto
+            conversation_id: Unique conversation ID
+            system_prompt: System prompt (optional)
+            memory_key: Key for memory in context
             
         Returns:
-            InMemoryChatMessageHistory configurada
+            Configured InMemoryChatMessageHistory
             
         Raises:
-            ExternalServiceError: Se falhar ao criar chain
+            ExternalServiceError: If chain creation fails
         """
         try:
             # Criar memória de conversa (LangChain 1.2.0+)
