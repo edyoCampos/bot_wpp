@@ -1,45 +1,44 @@
 """
-FastAPI dependencies para controllers async.
+FastAPI dependencies para controllers.
 
-Versão async das dependencies para compatibilidade com controllers modernos.
+Dependencies para autenticação e acesso a recursos.
 """
 
-from typing import AsyncGenerator
+from typing import Generator
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-from redis.asyncio import Redis
+from sqlalchemy.orm import Session
+import redis
 
 from robbot.adapters.repositories.user_repository import UserRepository
 from robbot.core import security
 from robbot.core.exceptions import AuthException
-from robbot.infra.db.session import async_session_maker
-from robbot.infra.redis_client import get_redis
-from robbot.domain.models import User
+from robbot.infra.db.session import get_db
+from robbot.infra.redis.client import get_redis_client
+from robbot.infra.db.models.user_model import UserModel
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+def get_db_session() -> Generator[Session, None, None]:
     """
-    Dependency que fornece uma sessão async do SQLAlchemy.
+    Dependency que fornece uma sessão do SQLAlchemy.
     """
-    async with async_session_maker() as session:
-        yield session
+    yield from get_db()
 
 
-async def get_redis_client() -> Redis:
+def get_redis() -> redis.Redis:
     """
-    Dependency que retorna cliente Redis async.
+    Dependency que retorna cliente Redis.
     """
-    return get_redis()
+    return get_redis_client()
 
 
-async def get_current_user(
+def get_current_user(
     token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db_session)
-) -> User:
+    db: Session = Depends(get_db_session)
+) -> UserModel:
     """
     Valida token JWT e retorna usuário atual do banco.
     
@@ -63,9 +62,9 @@ async def get_current_user(
             detail="Invalid token payload"
         )
     
-    # UserRepository async
+    # UserRepository
     repo = UserRepository(db)
-    user = await repo.get_by_id(int(user_id))
+    user = repo.get_by_id(int(user_id))
     
     if user is None:
         raise HTTPException(
