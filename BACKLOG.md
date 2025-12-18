@@ -6,38 +6,124 @@
 
 ---
 
-## 📊 Status Atual do Projeto
+## 📊 Status Atual do Projeto (Atualizado: 18/12/2025)
 
-### ✅ Implementado
+### ✅ **ÉPICOS CONCLUÍDOS (100%)**
 
-- Estrutura base FastAPI com Clean Architecture
-- Sistema de autenticação JWT (signup, login, refresh, logout)
-- Tabelas: users, revoked_tokens, alerts, messages, message_media, message_location
-- CRUD completo de mensagens (texto, mídia, localização)
-- Migrations Alembic
-- Docker Compose (api, db, adminer, waha)
-- Logging e tratamento de exceções
-- **Sistema Playbooks:** Topics, Playbooks, RAG ChromaDB, Gemini Tools integrados
-- **Sistema de Transcrição:** Faster-Whisper local (PT-BR, **ZERO CUSTO**)
-- **Sistema de Análise Visual:** BLIP-2 (Salesforce) open source (**ZERO CUSTO**)
-- **Localização da Clínica GO:** Configurada + Função de envio via WAHA
-  - Endereço: Av. São Miguel, 1000 - sala 102 - Centro, Dois Irmãos/RS
-  - Função: `send_clinic_location_via_waha(chat_id)` → envia pin no WhatsApp
-- **Processamento Automático de Mídia (100% GRATUITO):**
-  - Voice: Transcrição automática com Faster-Whisper (2 fluxos: webhook + API)
-  - Video: Transcrição de áudio + metadata
-  - **Image: Análise visual com BLIP-2** (~2-5s CPU, qualidade alta)
-  - Document: Metadata baseado em filename/caption
-  - Migration 0bba1bb7bf02: Campos `transcription`, `audio_url`, `has_audio`
-  - Campos já existentes: `title`, `description`, `tags`
+#### **ÉPICO 1: Infraestrutura Base** ✅
+- ✅ Redis configurado (Docker + Pool + Health check)
+- ✅ ChromaDB configurado (persist local + collections)
+- ✅ LangChain integrado (Google Gemini + Memory)
+- ✅ Todas dependências instaladas e validadas
+- ✅ Settings centralizadas (Pydantic BaseSettings)
+- ✅ 8 Enums de domínio criados
+- ✅ Factories e singletons implementados
 
-### 🔄 Em Desenvolvimento
+#### **ÉPICO 2: Integração WAHA** ✅
+- ✅ WAHAClient completo (35+ métodos async)
+- ✅ Gerenciamento de sessões (create, start, stop, restart, qr)
+- ✅ Envio de mensagens (texto, imagem, áudio, vídeo, documento, localização)
+- ✅ Webhook endpoint (/webhooks/waha)
+- ✅ Persistência de logs (webhook_logs table)
+- ✅ Controllers + Services + Repositories completos
+- ✅ Health check corrigido (ping endpoint, URL atualizada para rede Docker)
 
-- Nenhum card em andamento
+#### **ÉPICO 3: Sistema de Filas** ✅
+- ✅ RQ Manager (3 filas: messages, ai, escalation + DLQ)
+- ✅ 2 Workers replicados no docker-compose
+- ✅ Jobs implementados (MessageProcessing, Gemini, Escalation)
+- ✅ QueueService (enqueue, stats, retry, cancel, list jobs)
+- ✅ Exception handler customizado
+- ✅ Endpoints REST para gestão (/queues/*)
 
-### ⏳ Backlog Priorizado
+#### **ÉPICO 4: Banco de Dados Core** ✅
+- ✅ 23 tabelas implementadas:
+  * Core: users, revoked_tokens, alerts
+  * Conversas: conversations, conversation_messages, conversation_contexts
+  * Leads: leads, lead_interactions
+  * WhatsApp: whatsapp_sessions, webhook_logs
+  * Mensagens: messages, message_media, message_location
+  * LLM: llm_interactions
+  * Playbooks: topics, playbooks, playbook_steps, playbook_embeddings
+  * Sistema: notifications, tags, conversation_tags
+- ✅ 16 migrations Alembic aplicadas (versão head: 007ad6343e57)
+- ✅ Repositories para todos os models (19 repositories)
+- ✅ Relationships, FKs, Cascades, Índices completos
 
-167 cards divididos em 8 épicos
+#### **ÉPICO 5: Integração Gemini AI** ✅
+- ✅ GeminiClient (retry logic, rate limiting, function calling)
+- ✅ LangChainService (memória conversacional, chains)
+- ✅ ChromaDB RAG (embeddings, busca semântica)
+- ✅ ConversationOrchestrator (fluxo completo end-to-end)
+- ✅ Sistema de Playbooks com RAG
+  * Topics + Playbooks + Steps
+  * Busca semântica via ChromaDB
+  * Function Calling tools para LLM
+  * Auto-indexação de embeddings
+- ✅ Detecção de intenção via LLM
+- ✅ Prompts templates configuráveis
+- ✅ Processamento de mídia (transcrição + análise visual)
+
+#### **ÉPICO 6: Lógica de Negócio** ✅
+- ✅ ConversationService (CRUD, transições de status, transfers)
+- ✅ LeadService (criação, atribuição, scoring, conversão)
+- ✅ NotificationService (in-app, push para secretárias)
+- ✅ Sistema de scoring de maturidade (0-100)
+- ✅ Atribuição automática de leads (load balancing)
+- ✅ Detecção de urgência (keywords + LLM)
+- ✅ Transferência inteligente (bot → humano)
+- ✅ Status transitions com validação
+- ✅ Controllers REST completos (/conversations/*, /leads/*, /notifications/*)
+
+### 🔄 **ÉPICOS EM DESENVOLVIMENTO**
+
+#### **ÉPICO 7: Dashboard e Métricas** (70% - MVP IMPLEMENTADO)
+- ✅ 3 endpoints MVP implementados (KISS principle)
+- ✅ AnalyticsRepository com queries otimizadas (CTEs, window functions)
+- ✅ MetricsService com cache Redis (TTL 5-15min)
+- ✅ Schemas Pydantic para validação
+- ✅ Auth JWT + RBAC (Admin/User)
+- ⏳ Testes unitários e integração
+- ⏳ Dashboard frontend (React/Vue)
+
+#### **ÉPICO 8: Melhorias e Testes** (40%)
+- ✅ Custom exceptions (8 tipos)
+- ✅ Logging estruturado
+- ✅ Unit tests básicos (security, exceptions)
+- ⏳ Integration tests completos
+- ⏳ CI/CD pipeline
+- ⏳ Monitoramento (Prometheus/Grafana)
+
+### 📈 **RESUMO GERAL**
+
+**Progresso Total:** 87% concluído  
+**Épicos Completos:** 6/8 (75%)  
+**Produção-Ready:** ✅ SIM (core funcional)
+
+**Infraestrutura:**
+- ✅ 7 serviços Docker (API, DB, Redis, WAHA, 2 Workers, Adminer)
+- ✅ Clean Architecture respeitada
+- ✅ 100% type hints (Python 3.11+)
+- ✅ Async/await corretamente implementado
+- ✅ Health checks funcionando
+
+**Dívida Técnica Resolvida (18/12/2025):**
+- ✅ NotificationService refatorado (model + repository separados)
+- ✅ Controllers sem acesso direto a repositories
+- ✅ Lógica de negócio centralizada em services
+- ✅ Entities não instanciadas em controllers
+- ✅ Imports organizados (sem nested imports)
+- ✅ Código comentado removido
+- ✅ Docstrings traduzidas para inglês
+- ✅ Models de tags implementados
+- ✅ Runtime warning WAHAClient corrigido (async/await + URL Docker)
+- ✅ Variáveis de ambiente Docker corrigidas
+
+**Pendências:**
+- 🔄 Épico 7 (Dashboard e Métricas) - 70% (MVP implementado, pendente testes)
+- ⏳ Testes de integração completos
+- ⏳ CI/CD pipeline
+- ⏳ Documentação técnica completa
 
 ---
 
