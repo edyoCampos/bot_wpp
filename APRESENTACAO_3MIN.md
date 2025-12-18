@@ -33,8 +33,8 @@
 ### **CAMADA 2: A Memória - ChromaDB (RAG)**
 - **RAG** = Retrieval-Augmented Generation
 - *"Imagine uma biblioteca onde o bot busca o protocolo certo em 0.3 segundos"*
-- **20+ Playbooks cadastrados:** Emagrecimento com Mounjaro/Tirzepatida, TRH (terapia hormonal), contracepção, bioimpedância, protocolos pós-consulta
-- **Busca semântica:** Não precisa palavra exata, entende sinônimos ("emagrecer", "perder peso", "secar barriga" = mesmo contexto)
+- **20+ Playbooks cadastrados:** TRH (terapia hormonal), SOP + emagrecimento, contracepção, DIU, bioimpedância, protocolos pós-consulta
+- **Busca semântica:** Não precisa palavra exata, entende sinônimos ("TRH", "reposição hormonal", "menopausa" = mesmo contexto)
 
 ### **CAMADA 3: A Organização - Redis Queue + PostgreSQL**
 - **Redis Queue:** Fila inteligente que prioriza urgências
@@ -50,7 +50,7 @@
 
 ### Título: "Do Instagram ao Agendamento - Caso Real"
 
-**Cenário:** Juliana (32a) vê post sobre Mounjaro no Instagram e envia: *"Oi! Vi vocês no Insta. Já tentei mil dietas e nada funciona. Mounjaro resolve? Quanto custa?"*
+**Cenário:** Juliana (38a) vê post sobre TRH no Instagram e envia: *"Oi! Vi vocês no Insta. Estou com fogachos terríveis e ganho peso fácil. TRH pode me ajudar? Quanto custa?"*
 
 ---
 
@@ -60,14 +60,14 @@
 📱 Mensagem chega → Gemini + ChromaDB analisam em paralelo
 
 🧠 GEMINI:
-├─ Intenção: "Emagrecimento + Mounjaro"
-├─ Tom: "Frustração + esperança"
+├─ Intenção: "TRH + sintomas menopausais"
+├─ Tom: "Desconforto + busca por solução"
 ├─ Urgência: NENHUMA
 └─ Decisão: BOT QUALIFICA ✅
 
 📚 CHROMADB:
-├─ Busca: "emagrecimento mounjaro dietas"
-├─ Match 94%: "Protocolo Emagrecimento"
+├─ Busca: "TRH fogachos peso hormônios"
+├─ Match 96%: "Protocolo TRH"
 └─ Playbook selecionado
 ```
 
@@ -78,20 +78,21 @@
 ### **🟢 ETAPA 2: Bot Responde + Qualifica (3s)**
 
 ```
-"Oi Juliana! 😊 Entendo sua frustração. O emagrecimento 
-vai muito além de dietas — cada corpo reage de forma única 
-e é fundamental entender a CAUSA (hormônios, metabolismo, 
-resistência insulina) e não só o sintoma.
+"Oi Juliana! 😊 Entendo seu desconforto. A TRH vai muito 
+além de 'repor hormônios' — cada mulher tem necessidades 
+únicas e é fundamental entender a CAUSA dos sintomas 
+(estradiol, progesterona, tireoide) e não só tratá-los.
 
 A Dra. é especialista nisso! Trabalha com protocolos 
-integrativos, incluindo Mounjaro quando clinicamente indicado.
+individualizados de TRH, sempre baseados em exames e 
+avaliação clínica completa.
 
 Consulta R$ 600 (1h-1h20):
-✅ Bioimpedância completa
-✅ Análise hormonal personalizada
-✅ Protocolo sob medida (não é só remédio!)
+✅ Avaliação hormonal completa
+✅ Análise de sintomas e histórico
+✅ Protocolo personalizado (dose, via, acompanhamento)
 
-Para te orientar melhor: peso, altura e se já fez exames?"
+Para te orientar melhor: idade, exames recentes e histórico?"
 ```
 
 ```python
@@ -105,19 +106,20 @@ Lead criado:
 
 ### **🟢 ETAPA 3: Lead Engaja (2s)**
 
-**Juliana:** *"1,65m, 85kg. Não fiz exames há 2 anos. Acho que tenho resistência à insulina."*
+**Juliana:** *"38 anos, fogachos dia e noite, engordei 8kg em 6 meses. Último exame há 1 ano."*
 
 **Bot qualifica:**
 ```
-"Perfeito! Com IMC 31, seu corpo está sinalizando um 
-desequilíbrio metabólico. A resistência à insulina é uma 
-CAUSA comum que impede o emagrecimento — não adianta só 
-fazer dieta se o metabolismo está travado.
+"Perfeito! Aos 38 anos, seu corpo está sinalizando uma 
+transição hormonal (perimenopausa). Fogachos + ganho de 
+peso são SINAIS de queda de estradiol e progesterona — 
+não adianta só 'aguentar' se o desequilíbrio está afetando 
+sua qualidade de vida.
 
 A Dra. trabalha justamente nisso: entende O QUE seu corpo 
-está tentando dizer e age na raiz. O Mounjaro pode ser 
-parte do protocolo, mas só após avaliação completa dos 
-seus exames e histórico.
+está tentando dizer e age na raiz. A TRH pode ser parte 
+do protocolo, mas só após avaliação completa dos seus 
+exames atuais e sintomas.
 
 Quer agendar? Tenho horários essa semana!"
 ```
@@ -184,16 +186,16 @@ Lead Juliana:
 ## 🧠 **COMO O BOT DECIDE: 3 CENÁRIOS REAIS**
 
 ### **CENÁRIO A: Caso Simples (70% dos casos)**
-**Mensagem:** *"Quanto custa a consulta? Vocês trabalham com Mounjaro?"*
+**Mensagem:** *"Quanto custa a consulta? Vocês trabalham com TRH?"*
 
 ```
 ✅ Bot decide: AUTONOMIA TOTAL
 ↓
-1. Busca playbook "Valores + Mounjaro/Tirzepatida" (RAG 92% match)
+1. Busca playbook "Valores + TRH" (RAG 94% match)
 2. Gemini formula resposta natural e empática
-3. Responde: "Consulta R$ 600 (particular). Sim, Dra. trabalha com 
-   Mounjaro quando indicado. Consulta 1h-1h20, inclui bioimpedância..."
-4. Qualifica: "Qual seu principal objetivo? Peso atual?"
+3. Responde: "Consulta R$ 600 (particular). Sim, a Dra. é especialista em TRH 
+   personalizado. Avaliação hormonal completa 1h-1h20..."
+4. Qualifica: "Quais sintomas você está sentindo? Idade e últimos exames?"
 5. Continua coletando dados até agendamento
 ```
 
@@ -337,7 +339,7 @@ Evita: Respostas erradas por "achar que sabe"
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│   Vi vocês no Instagram. Trabalham com Mounjaro? Preciso     │
+│   Vi vocês no Instagram. Trabalham com SOP? Tenho ciclos    │
 │   emagrecer 20kg e já tentei tudo."                           │
 │   "Estou com dor no peito, vocês atendem urgência?"           │
 └───────────────────────┬────────────────────────────────────────┘
@@ -356,17 +358,17 @@ Evita: Respostas erradas por "achar que sabe"
 │  🧠 ANÁLISE PARALELA (2 segundos)                             │
 │                                                                │
 │  ┌────────────────────────────────────lead novo)          │ │
-│  │ ├─ Detecta intenção: "emagrecimento + mounjaro"        │ │
-│  │ ├─ Analisa tom: "frustração + alta motivação"          │ │
-│  │ └─ Extrai entidades: ["mounjaro", "20kg", "instagram"] │ │
+│  │ ├─ Detecta intenção: "SOP + ciclos irregulares"        │ │
+│  │ ├─ Analisa tom: "frustração + busca ajuda"             │ │
+│  │ └─ Extrai entidades: ["SOP", "ciclos", "instagram"]    │ │
 │  └─────────────────────────────────────────────────────────┘ │
 │                                                                │
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │ CHROMADB RAG (Busca Semântica)                          │ │
-│  │ Query: "mounjaro emagrecimento 20kg tentou tudo"        │ │
-│  │ ├─ Top 1: "Protocolo Emagrecimento Tirzepatida" (94%)  │ │
-│  │ ├─ Top 2: "Qualificação Lead Emagrecimento" (89%)      │ │
-│  │ └─ Top 3: "FAQ Mounjaro Ozempic" (78%)                 │ │
+│  │ Query: "SOP ciclos irregulares emagrecimento"           │ │
+│  │ ├─ Top 1: "Protocolo SOP + Hormônios" (96%)            │ │
+│  │ ├─ Top 2: "Qualificação Lead SOP" (91%)                │ │
+│  │ └─ Top 3: "FAQ Metformina Resistência Insulina" (84%)  │ │
 │  └─────────────────────────────────────────────────────────┘ │
 │                                                                │
 │  ┌─────────────────────────────────────────────────────────┐ │
@@ -404,7 +406,7 @@ Evita: Respostas erradas por "achar que sabe"
 │                                                             │
 │  🤖 SIMPLES (Lead emagrecimento qualificável):             │
 │  ├─ Bot formula resposta empática com Gemini + Playbook    │
-│  ├─ Explica: consulta 1h, bioimpedância, Mounjaro          │
+│  ├─ Explica: consulta 1h, avaliação hormonal, SOP        │
 │  ├─ Qualifica: peso, altura, exames, objetivo              │
 │  ├─ Informa valor: R$ 600 particular                       │
 │  └─ Lead.maturity_score += 20 (lead quente)                │
@@ -412,7 +414,7 @@ Evita: Respostas erradas por "achar que sabe"
 │  ⚠️ COMPLEXO (Perguntas médicas sensíveis):                │
 │  ├─ Bot: "Vou conectar você com nossa equipe"              │
 │  ├─ Conversation.needs_human_review = TRUE                 │
-│  ├─ Ex: "SOP + gravidez + Mounjaro?" → precisa médica      │
+│  ├─ Ex: "SOP + gravidez + TRH?" → precisa médica          │
 │  └─ Secretária revisa em 30min (não urgente)               │
 │  ├─ Adiciona à fila prioritária                            │
 │  └─ Notificação não-urgente para secretária                │
