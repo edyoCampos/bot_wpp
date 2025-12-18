@@ -78,15 +78,20 @@
 ### **🟢 ETAPA 2: Bot Responde + Qualifica (3s)**
 
 ```
-"Oi Juliana! 😊 Entendo sua frustração. Sim, 
-a Dra. trabalha com Mounjaro quando indicado!
+"Oi Juliana! 😊 Entendo sua frustração. O emagrecimento 
+vai muito além de dietas — cada corpo reage de forma única 
+e é fundamental entender a CAUSA (hormônios, metabolismo, 
+resistência insulina) e não só o sintoma.
 
-A consulta é R$ 600 e dura 1h-1h20:
+A Dra. é especialista nisso! Trabalha com protocolos 
+integrativos, incluindo Mounjaro quando clinicamente indicado.
+
+Consulta R$ 600 (1h-1h20):
 ✅ Bioimpedância completa
-✅ Análise hormonal
-✅ Protocolo personalizado
+✅ Análise hormonal personalizada
+✅ Protocolo sob medida (não é só remédio!)
 
-Me conta: peso, altura e se já fez exames?"
+Para te orientar melhor: peso, altura e se já fez exames?"
 ```
 
 ```python
@@ -104,14 +109,17 @@ Lead criado:
 
 **Bot qualifica:**
 ```
-"Perfeito! IMC 31 (sobrepeso). Resistência à insulina 
-dificulta muito o emagrecimento - por isso protocolos 
-integrativos funcionam melhor.
+"Perfeito! Com IMC 31, seu corpo está sinalizando um 
+desequilíbrio metabólico. A resistência à insulina é uma 
+CAUSA comum que impede o emagrecimento — não adianta só 
+fazer dieta se o metabolismo está travado.
 
-O Mounjaro atua na resistência + controle do apetite. 
-Mas só a Dra. pode indicar após avaliar. 
+A Dra. trabalha justamente nisso: entende O QUE seu corpo 
+está tentando dizer e age na raiz. O Mounjaro pode ser 
+parte do protocolo, mas só após avaliação completa dos 
+seus exames e histórico.
 
-Quer agendar? Tenho essa semana!"
+Quer agendar? Tenho horários essa semana!"
 ```
 
 ```python
