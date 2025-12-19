@@ -207,13 +207,14 @@ infer_type_and_message() {
 }
 
 # --- Agrupamento e planejamento de commits ---
-unset TYPES REASONS GROUPS SOLO_FILES SOLO_TYPES SOLO_MSGS
+# Limpar variáveis do ambiente se existirem
+unset TYPES REASONS GROUPS 2>/dev/null || true
 declare -A TYPES
 declare -A REASONS
 declare -A GROUPS        # chave -> lista separada por '|:|' (simples)
-declare -a SOLO_FILES
-declare -a SOLO_TYPES
-declare -a SOLO_MSGS
+declare -a SOLO_FILES=()
+declare -a SOLO_TYPES=()
+declare -a SOLO_MSGS=()
 
 GROUP_KEY_DOCS="docs"
 GROUP_KEY_STYLE="style"
