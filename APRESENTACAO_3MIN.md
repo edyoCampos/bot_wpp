@@ -8,10 +8,10 @@
 ### Título: "O Problema Real"
 
 **O contexto real:**
-> "Uma clínica de ginecologia recebe 150+ mensagens por dia de mulheres vindas do Google Ads e Instagram buscando perder peso. A secretária está ocupada atendendo presencialmente. Resultado: a maioria dos leads esfriam e desistem se ficam sem resposta."
+> "Uma clínica de ginecologia recebe 150+ mensagens por dia de mulheres vindas do Google Ads e Instagram buscando atendimento. A secretária está ocupada atendendo presencialmente. Resultado: a maioria dos leads esfriam e desistem se ficam sem resposta."
 
 **O que construímos:**
-> "Um sistema que responde em 2 segundos, qualifica cada lead, detecta casos que precisam de atenção imediata e transfere para secretária apenas quando necessário."
+> "Um sistema que responde em 2 segundos, qualifica cada lead automaticamente, e quando o lead está pronto para agendamento ou precisa de atenção especial, NOTIFICA a secretária via dashboard. Ela recebe apenas leads qualificados e prontos, com todo histórico da conversa."
 
 ---
 
@@ -117,40 +117,36 @@ está tentando dizer e age na raiz. A TRH pode ser parte
 do protocolo, mas só após avaliação completa dos seus 
 exames atuais e sintomas.
 
-Quer agendar? Tenho horários essa semana!"
+📍 Consulta R$ 600 (particular, 1h-1h20)
+Gostaria que nossa equipe entre em contato para agendamento?"
 ```
 
 ```python
-├─ Score: 85/100 → QUALIFICADO
-├─ Dados: peso, altura, histórico
-└─ Pronto para conversão
+├─ Score: 85/100 → ALTA MATURIDADE
+├─ Dados: idade, sintomas, histórico
+└─ Pronto para handoff
 ```
 
 ---
 
-### **🟢 ETAPA 4: Conversão (1s)**
+### **🟢 ETAPA 4: Transferência para Secretária (2s)**
 
-**Juliana:** *"Sim! Que dia?"*
+**Juliana:** *"Sim, gostaria!"*
 
-**Bot:**
-```
-"Ótimo! Temos:
-• Terça 10h30
-• Quinta 14h
-
-Qual prefere?"
-```
-
-**Juliana:** *"Quinta 14h"*
-
-**Bot:**
-```
-"Agendado! ✅
-📅 Quinta, 14h - Dra. [Nome]
-💰 R$ 600 (particular)
-📍 [Endereço]
-
-Lembrete: traga exames se tiver 😊"
+**Sistema detecta alta maturidade e interesse:**
+```python
+Decisão: Score 85 + interesse confirmado → HANDOFF
+↓
+1. Bot responde: "Ótimo! Vou conectar você com nossa equipe 
+   para agilizar seu agendamento. Aguarde um momento."
+2. Sistema atualiza conversa:
+   ├─ status = PENDING_HANDOFF
+   ├─ escalation_reason = "score_high"
+   └─ handoff_at = NOW()
+3. NotificationService cria notificação no dashboard:
+   "Nova conversa pronta para agendamento - Juliana (85pts)"
+4. Secretária vê notificação, abre conversa e continua 
+   o atendimento com todo o histórico disponível
 ```
 
 ---
@@ -159,23 +155,24 @@ Lembrete: traga exames se tiver 😊"
 
 ```python
 Lead Juliana:
-├─ Score: 100/100 → CONVERTIDO 🎉
-├─ Tempo: 2 minutos
-├─ Intervenção humana: 0%
-└─ Status: AGENDAMENTO_CONFIRMADO
+├─ Score: 85/100 → QUALIFICADA
+├─ Tempo: 2 minutos (bot)
+├─ Status: PENDING_HANDOFF
+└─ Próximo passo: Secretária realiza agendamento
 ```
 
 | Métrica | Valor |
 |---------|-------|
-| ⏱️ Tempo | 2min |
-| 🤖 Autonomia | 100% |
-| 💰 Conversão | SIM |
-| 👤 Secretária | Livre |
+| ⏱️ Tempo Bot | 2min |
+| 🤖 Qualificação | 100% |
+| 💰 Lead Qualificado | SIM |
+| 👤 Secretária | Assume para agendar |
 
 **Por que funcionou?**
-- ✅ Caso simples (sem urgência)
-- ✅ Playbook completo (94% match)
-- ✅ Lead engajou e forneceu dados
+- ✅ Bot qualificou completamente o lead
+- ✅ Identificou interesse real (score 85)
+- ✅ Transferiu no momento certo
+- ✅ Secretária recebe lead quente e pronto
 
 ---
 
@@ -185,17 +182,19 @@ Lead Juliana:
 **Mensagem:** *"Quanto custa a consulta? Vocês trabalham com TRH?"*
 
 ```
-✅ Bot decide: AUTONOMIA TOTAL
+✅ Bot decide: QUALIFICA LEAD
 ↓
 1. Busca playbook "Valores + TRH" (RAG 94% match)
 2. Gemini formula resposta natural e empática
 3. Responde: "Consulta R$ 600 (particular). Sim, a Dra. é especialista em TRH 
    personalizado. Avaliação hormonal completa 1h-1h20..."
 4. Qualifica: "Quais sintomas você está sentindo? Idade e últimos exames?"
-5. Continua coletando dados até agendamento
+5. Continua coletando dados e aumentando score
+6. Quando score >= 70: Informa que equipe entrará em contato para agendamento
+7. Trigger handoff automático → Secretária recebe notificação
 ```
 
-**Resultado:** Lead score +20 pontos. Nenhum humano acionado.
+**Resultado:** Lead qualificado (score 70-85). Transferido para secretária realizar agendamento.
 
 ---
 
@@ -263,7 +262,7 @@ Sistema calcula em tempo real:
 Decisão:
 ├─ Score < 30: Lead frio → Bot nutre
 ├─ Score 30-70: Lead morno → Bot qualifica  
-└─ Score > 70: Lead quente → Bot oferece agendamento OU escala
+└─ Score >= 70: Lead quente → Handoff para secretária (notificação)
 ```
 
 #### **VERIFICAÇÃO 2: Detecção de Urgência (Dupla)**
@@ -414,8 +413,9 @@ Evita: Respostas erradas por "achar que sabe"
 │  ├─ Explica: consulta 1h, avaliação hormonal, SOP         │
 │  ├─ Qualifica: idade, sintomas, histórico                  │
 │  ├─ Informa valor: R$ 600 particular                       │
-│  └─ Lead.maturity_score += 20 (lead quente)                │
-│  └─ 70% dos casos resolvidos pelo bot                      │
+│  ├─ Lead.maturity_score += 20 (lead quente)                │
+│  └─ Quando score >= 70: Handoff para secretária agendar    │
+│  └─ 70% dos casos qualificados pelo bot                    │
 │                                                             │
 │  ⚠️ COMPLEXO (RAG 50-80% ou dúvida médica sensível):      │
 │  ├─ Conversation.escalation_reason = "complex_medical"     │
@@ -465,11 +465,12 @@ Evita: Respostas erradas por "achar que sabe"
 - ✅ **Handoff:** Detecção de urgência em 3 segundos
 
 ### **Impacto Estimado (Projeção 1º Mês):**
-- 📈 **+300% capacidade** de atendimento (1 secretária → equivalente a 3)
-- ⏱️ **-95% tempo de resposta** (2h média → 3s)
-- 🎯 **+80% taxa de conversão** (lead não "esfria" esperando)
-- 😊 **+60% satisfação** (resposta imediata, 24/7)
+- 📈 **+300% capacidade** de qualificação (1 secretária foca só em agendamentos)
+- ⏱️ **-95% tempo de resposta inicial** (2h média → 3s para primeira interação)
+- 🎯 **+80% taxa de conversão** (lead não "esfria" esperando, chega quente para secretária)
+- 😊 **+60% satisfação** (resposta imediata 24/7, atendimento humanizado)
 - 💰 **Custo operacional:** R$ 200/mês (vs R$ 3.000/mês de secretária adicional)
+- 🎯 **Secretária recebe apenas leads qualificados** (score >= 70), não perde tempo com curiosos
 
 ### **Status Atual - Pronto para Deploy:**
 - ✅ **Ambiente de produção:** Configurado e testado
@@ -485,7 +486,10 @@ Evita: Respostas erradas por "achar que sabe"
 > "Ele pede ajuda! Está programado para transferir casos complexos. Além disso, toda conversa fica registrada para auditoria."
 
 ### **"O bot substitui a secretária?"**
-> "Não! Ele é o assistente da secretária. Bot cuida das perguntas repetitivas (70% dos casos). Quando detecta algo complexo ou urgente, escalada a conversa e ela assume pelo dashboard web - vê todo o histórico e continua o atendimento de onde o bot parou."
+> "Não! Ele é o assistente da secretária. Bot qualifica leads e responde dúvidas comuns (70% do trabalho repetitivo). Quando o lead está pronto ou caso é complexo/urgente, ele transfere para a secretária via notificação no dashboard. Ela vê todo o histórico e assume apenas para fazer o agendamento final ou dar suporte especializado."
+
+### **"O bot agenda consultas?"**
+> "Não! O bot QUALIFICA o lead e identifica quando está pronto para agendamento. Nesse momento, ele transfere para a secretária que recebe uma notificação no dashboard. A secretária faz o agendamento com todo o contexto já coletado pelo bot."
 
 ### **"Quanto tempo levou para construir?"**
 > "3 meses de desenvolvimento. Estamos a 89% completos, faltam apenas testes e treinamento da equipe."
@@ -708,13 +712,13 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 **O que você quer que o público lembre:**
 
-1. ✅ **É um assistente, não substitui humanos**
-2. ✅ **Funciona 24/7 e resolve 70% dos casos simples**
-3. ✅ **Sabe quando pedir ajuda humana**
-4. ✅ **Está quase pronto (89%)**
-5. ✅ **Vai melhorar a experiência do paciente e produtividade da equipe**
+1. ✅ **É um assistente, não substitui humanos - complementa a secretária**
+2. ✅ **Funciona 24/7 e qualifica 70% dos leads automaticamente**
+3. ✅ **Sabe quando transferir para humano (score alto ou urgência)**
+4. ✅ **Secretária recebe NOTIFICAÇÃO quando lead está pronto**
+5. ✅ **Está quase pronto (89%)**
+6. ✅ **Bot NÃO agenda - ele qualifica e prepara para a secretária agendar**
 
 **Se o público lembrar só de UMA COISA:**
-> "O bot é uma recepcionista digital inteligente que nunca dorme e sabe quando chamar o gerente."
+> "O bot é uma recepcionista digital inteligente que QUALIFICA leads 24/7, e quando eles estão prontos, NOTIFICA a secretária para fazer o agendamento. Ele não agenda sozinho - ele prepara o terreno para a secretária fechar."
 
-Boa sorte! 🚀
