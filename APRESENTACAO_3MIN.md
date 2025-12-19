@@ -5,17 +5,13 @@
 
 ## 🎯 **SLIDE 1: O Problema Real (30 segundos)**
 
-### Título: "Leads de Emagrecimento Não Podem Esfriar"
+### Título: "O Problema Real"
 
 **O contexto real:**
-> "Uma clínica de ginecologia e emagrecimento recebe 150+ mensagens por dia de mulheres vindas do Google Ads e Instagram buscando perder peso. A secretária está ocupada atendendo presencialmente. Resultado: 60% dos leads esfriam e desistem em 2 horas sem resposta."
+> "Uma clínica de ginecologia recebe 150+ mensagens por dia de mulheres vindas do Google Ads e Instagram buscando perder peso. A secretária está ocupada atendendo presencialmente. Resultado: a maioria dos leads esfriam e desistem se ficam sem resposta."
 
 **O que construímos:**
-> "Um sistema que responde TODA mulher interessada em emagrecimento/TRH em 2 segundos, qualifica cada lead (idade, peso, objetivo), detecta casos que precisam de atenção imediata e transfere para secretária apenas quando necessário."
-
-**Números antes/depois:**
-- ❌ **Antes:** 60% leads perdidos, 2h tempo de resposta, lead "esfria" e desiste
-- ✅ **Depois:** 0% leads ignorados, 2s resposta, secretária foca em agendamentos e casos complexos (30%)
+> "Um sistema que responde em 2 segundos, qualifica cada lead, detecta casos que precisam de atenção imediata e transfere para secretária apenas quando necessário."
 
 ---
 
@@ -204,42 +200,49 @@ Lead Juliana:
 ---
 
 ### **CENÁRIO B: Caso Complexo (20% dos casos)**
-**Mensagem:** *"Meu convênio cobre cirurgia bariátrica? Preciso de laudo médico?"*
+**Mensagem:** *"Tenho SOP + quero engravidar + tomo metformina. TRH é seguro?"*
 
 ```
-⚠️ Bot decide: PRECISO DE AJUDA
+⚠️ Bot decide: PRECISO DE AJUDA (questão médica sensível)
 ↓
-1. Gemini: "Pergunta específica sobre cobertura cirúrgica + documentação"
-2. ChromaDB não tem playbook com 80%+ confiança
-3. Bot responde: "Ótima pergunta! Para te dar informação 
-   precisa sobre cobertura cirúrgica, vou conectar você 
-   com nossa especialista. Um momento!"
-4. Sistema marca: needs_human_review = TRUE
+1. Gemini analisa: pergunta médica complexa (SOP + gravidez + medicação)
+2. ChromaDB retorna match < 80% (não tem playbook específico)
+3. Sistema registra escalação:
+   ├─ Conversation.escalation_reason = "complex_medical"
+   ├─ Conversation.handoff_at = NOW()
+   └─ NotificationService cria notificação in-app
+4. Bot responde: "Excelente pergunta! Como envolve sua 
+   condição específica e medicação atual, vou conectar 
+   você com nossa equipe para te orientar com segurança."
+5. Dashboard mostra nova conversa na lista "Aguardando Atendimento"
 ```
 
-**Resultado:** Lead fica na fila prioritária. Secretária revisa quando disponível.
+**Resultado:** Conversa fica disponível no dashboard. Secretária assume quando 
+disponível e pode responder diretamente pela interface web.
 
 ---
 
 ### **CENÁRIO C: Caso Urgente (10% dos casos)**
-**Mensagem:** *"Estou sangrando muito após procedimento"*
+**Mensagem:** *"Estou sangrando muito há 2 horas"*
 
 ```
 🚨 Bot decide: ESCALAÇÃO IMEDIATA
 ↓
-1. Keywords: ["sangrando", "muito", "procedimento"]
-2. Gemini: "Emergência pós-operatória. Risco de complicação."
-3. Sistema aciona TODOS os canais:
-   ├─ Notificação push para 2 secretárias
-   ├─ Email prioritário
-   └─ SMS (se configurado)
-4. Bot responde: "ATENÇÃO: Isso é uma emergência. 
-   Nossa equipe está sendo notificada AGORA. 
-   Se o sangramento for intenso, ligue 192 ou 
-   vá ao pronto-socorro mais próximo."
+1. Keywords urgentes detectadas: ["sangrando", "muito", "horas"]
+2. Gemini confirma: urgency_level = CRITICAL
+3. Sistema registra handoff:
+   ├─ Conversation.escalation_reason = "urgent_medical"
+   ├─ Conversation.escalated_at = NOW()
+   ├─ Conversation.handoff_to = próxima secretária disponível
+   └─ NotificationService cria notificação in-app (Dashboard)
+4. Bot responde: "Entendo a urgência. Vou notificar nossa 
+   equipe AGORA. Por favor, aguarde contato. Se piorar, 
+   procure atendimento de emergência (192)."
+5. Dashboard médico mostra conversa no topo com badge 🚨 URGENTE
 ```
 
-**Resultado:** Handoff em 3 segundos. Conversa marcada com flag CRITICAL.
+**Resultado:** Handoff em 3s. Conversa marcada como prioritária. Secretária vê 
+notificação no dashboard e pode assumir conversa imediatamente via interface web.
 
 ---
 
@@ -315,8 +318,8 @@ Evita: Respostas erradas por "achar que sabe"
 - ConversationOrchestrator (cérebro do sistema)
 - Lead scoring automático (0-100)
 - Detecção de urgência multi-nível
-- Sistema de notificações (push + email)
-- Handoff inteligente
+- Sistema de notificações in-app (Dashboard)
+- Handoff inteligente com escalation tracking
 
 ### 🔄 **ÉPICO 7: Dashboard e Métricas (70%)**
 - 3 endpoints MVP implementados:
@@ -398,26 +401,29 @@ Evita: Respostas erradas por "achar que sabe"
        │                │                  │
        ▼                ▼                  ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  🎯 AÇÕES S (Sintoma ginecológico urgente):                │
-│  ├─ NotificationService → Push + Email urgente             │
-│  ├─ Conversation.status = ACTIVE_WITH_HUMAN                │
-│  ├─ Bot: "Acionando equipe AGORA. Dra. é gineco"           │
-│  └─ Lead.maturity_score = 85 (urgência médica)             │
+│  🚨 URGENTE (Sintoma médico crítico):                      │
+│  ├─ Conversation.escalation_reason = "urgent_medical"      │
+│  ├─ Conversation.escalated_at = NOW()                      │
+│  ├─ NotificationService → Notificação in-app (Dashboard)   │
+│  ├─ Bot responde: "Entendo a urgência. Vou notificar      │
+│  │   nossa equipe agora. Por favor, aguarde contato."      │
+│  └─ Lead marcado como prioritário no dashboard             │
 │                                                             │
-│  🤖 SIMPLES (Lead emagrecimento qualificável):             │
+│  🤖 SIMPLES (Lead qualificável com RAG > 80%):            │
 │  ├─ Bot formula resposta empática com Gemini + Playbook    │
-│  ├─ Explica: consulta 1h, avaliação hormonal, SOP        │
-│  ├─ Qualifica: peso, altura, exames, objetivo              │
+│  ├─ Explica: consulta 1h, avaliação hormonal, SOP         │
+│  ├─ Qualifica: idade, sintomas, histórico                  │
 │  ├─ Informa valor: R$ 600 particular                       │
 │  └─ Lead.maturity_score += 20 (lead quente)                │
+│  └─ 70% dos casos resolvidos pelo bot                      │
 │                                                             │
-│  ⚠️ COMPLEXO (Perguntas médicas sensíveis):                │
-│  ├─ Bot: "Vou conectar você com nossa equipe"              │
-│  ├─ Conversation.needs_human_review = TRUE                 │
-│  ├─ Ex: "SOP + gravidez + TRH?" → precisa médica          │
-│  └─ Secretária revisa em 30min (não urgente)               │
-│  ├─ Adiciona à fila prioritária                            │
-│  └─ Notificação não-urgente para secretária                │
+│  ⚠️ COMPLEXO (RAG 50-80% ou dúvida médica sensível):      │
+│  ├─ Conversation.escalation_reason = "complex_medical"     │
+│  ├─ Conversation.handoff_at = NOW()                        │
+│  ├─ NotificationService → Dashboard mostra nova conversa   │
+│  ├─ Bot: "Vou conectar você com nossa equipe para te      │
+│  │   orientar melhor sobre isso."                          │
+│  └─ Secretária assume conversa via dashboard (não-urgente) │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -479,7 +485,7 @@ Evita: Respostas erradas por "achar que sabe"
 > "Ele pede ajuda! Está programado para transferir casos complexos. Além disso, toda conversa fica registrada para auditoria."
 
 ### **"O bot substitui a secretária?"**
-> "Não! Ele é o assistente da secretária. Cuida das perguntas repetitivas, deixando ela livre para casos que precisam de empatia e julgamento humano."
+> "Não! Ele é o assistente da secretária. Bot cuida das perguntas repetitivas (70% dos casos). Quando detecta algo complexo ou urgente, escalada a conversa e ela assume pelo dashboard web - vê todo o histórico e continua o atendimento de onde o bot parou."
 
 ### **"Quanto tempo levou para construir?"**
 > "3 meses de desenvolvimento. Estamos a 89% completos, faltam apenas testes e treinamento da equipe."
@@ -554,10 +560,10 @@ Evita: Respostas erradas por "achar que sabe"
    - Mostrar JSON com KPIs reais
 
 **OPÇÃO B - Screenshots Preparados (mais seguro):**
-- Screenshot 1: Conversa WhatsApp completa
-- Screenshot 2: Logs do ConversationOrchestrator (decisão sendo tomada)
-- Screenshot 3: Notificação de urgência sendo disparada
-- Screenshot 4: Banco de dados com lead criado e scored
+- Screenshot 1: Conversa WhatsApp completa (bot qualificando lead)
+- Screenshot 2: Logs do ConversationOrchestrator mostrando decisão RAG
+- Screenshot 3: Dashboard com notificação in-app de nova conversa
+- Screenshot 4: Banco de dados mostrando `handoff_at` e `escalation_reason` preenchidos
 
 **OPÇÃO C - Vídeo Gravado (mais profissional):**
 - 60s de vídeo mostrando fluxo completo
