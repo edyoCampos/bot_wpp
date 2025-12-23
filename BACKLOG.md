@@ -4,9 +4,59 @@
 > **Stack:** FastAPI + PostgreSQL + Redis + Gemini AI + WAHA + LangChain + ChromaDB  
 > **Priorização:** Por dependência técnica e valor de negócio
 
+
+## � ÍNDICE RÁPIDO
+
+### 🔴 **CRÍTICO - LEIA PRIMEIRO**
+- [⚠️ AUDITORIA ARQUITETURAL: AUTH vs USER](#️-auditoria-arquitetural-separação-auth-vs-user) - **12 VIOLAÇÕES CRÍTICAS IDENTIFICADAS**
+  - Status: 🔴 BLOQUEANTE PARA PRODUÇÃO
+  - Impacto: Segurança, Arquitetura, Compliance
+  - Ação: Refatoração obrigatória (P0)
+
+### � **IMPORTANTE - CONFIGURAÇÃO DE INFRAESTRUTURA**
+- [📧 Sistema de Email: MailDev → Postal](#-sistema-de-email-maildev--postal) - **ESTRATÉGIA DE MIGRAÇÃO**
+  - Desenvolvimento: MailDev (SMTP local via Docker)
+  - Produção: Migração futura para Postal
+  - Zero custo em ambas as soluções
+### �📊 Status e Planejamento
+- [📊 Status Atual do Projeto](#-status-atual-do-projeto-atualizado-18122025)
+- [🎯 Épicos e Priorização](#-épicos-e-priorização)
+- [📦 Gerenciador de Pacotes (UV)](#-gerenciador-de-pacotes)
+
+### 🔧 Implementação
+- [ÉPICO 1: Infraestrutura Base](#épico-1-infraestrutura-base)
+- [ÉPICO 2: Integração WAHA](#épico-2-integração-waha)
+- [ÉPICO 3: Sistema de Filas](#épico-3-sistema-de-filas)
+- [ÉPICO 4: Banco de Dados Core](#épico-4-banco-de-dados-core)
+- [ÉPICO 5: Integração Gemini AI](#épico-5-integração-gemini-ai)
+- [ÉPICO 6: Lógica de Negócio](#épico-6-lógica-de-negócio)
+- [ÉPICO 7: Dashboard e Métricas](#épico-7-dashboard-e-métricas)
+- [ÉPICO 8: Melhorias e Testes](#épico-8-melhorias-e-testes)
+
 ---
 
-## 📊 Status Atual do Projeto (Atualizado: 18/12/2025)
+## 📊 Status Atual do Projeto (Atualizado: 22/12/2025)
+
+### 🔴 **ALERTA DE SEGURANÇA**
+
+**DESCOBERTO EM:** 22/12/2025  
+**SEVERIDADE:** CRÍTICA (P0)  
+**STATUS:** 🔴 BLOQUEANTE PARA PRODUÇÃO
+
+Foi identificada **violação grave** de separação de responsabilidades entre módulos **Auth** (Autenticação/Segurança) e **User** (Perfil/Domínio). 
+
+**12 violações críticas** foram documentadas, incluindo:
+- Credenciais misturadas com dados de perfil
+- Refresh token sem rotation (vulnerável a roubo)
+- Reset de senha não invalida sessões ativas
+- Ausência de rate limiting (vulnerável a brute force)
+- Falta de MFA, email verification e gerenciamento de sessões
+
+👉 **[VER AUDITORIA COMPLETA](#️-auditoria-arquitetural-separação-auth-vs-user)**
+
+**Ação Requerida:** Refatoração obrigatória antes de produção (8 semanas para MVP seguro)
+
+---
 
 ### ✅ **ÉPICOS CONCLUÍDOS (100%)**
 
@@ -143,13 +193,3608 @@
 - Extraia `user_id` do token JWT para filtrar dados por usuário
 - Endpoints de métricas e dashboard devem respeitar o role do usuário autenticado
 
-### Gerenciador de Pacotes:
+---
 
-- **UV:** Este projeto usa `uv` como gerenciador de pacotes Python
+## ⚠️ AUDITORIA ARQUITETURAL: SEPARAÇÃO AUTH vs USER
+
+**Data da Auditoria:** 22/12/2025  
+**Auditor:** Arquiteto de Software Sênior  
+**Status:** 🔴 VIOLAÇÕES CRÍTICAS IDENTIFICADAS
+
+### 📋 RESUMO EXECUTIVO
+
+O projeto atual **VIOLA GRAVEMENTE** os princípios de separação de responsabilidades entre os módulos **Auth** (Autenticação/Segurança) e **User** (Perfil/Domínio). Essas violações comprometem a segurança, testabilidade e manutenibilidade do sistema.
+
+**Severidade:** ALTA  
+**Impacto:** Arquitetural  
+**Ação Requerida:** Refatoração obrigatória antes de produção
+
+---
+
+### 🔍 ANÁLISE DETALHADA - SITUAÇÃO ATUAL
+
+#### ✅ O QUE ESTÁ CORRETO (Pontos Positivos)
+
+1. **Separação física de controllers existe:**
+   - `auth_controller.py` (7 endpoints)
+   - `user_controller.py` (4 endpoints)
+
+2. **Token repository isolado:**
+   - `RevokedTokenModel` e `TokenRepository` separados
+   - Revogação de tokens persistida em DB
+
+3. **Hashing de senha:**
+   - `bcrypt` com truncamento 72 bytes
+   - `verify_password()` e `get_password_hash()` em `security.py`
+
+4. **JWT com tipos de token:**
+   - `access` vs `refresh` vs `pw-reset`
+   - Expiração configurável (15min access, 7 dias refresh)
+
+#### 🔴 VIOLAÇÕES CRÍTICAS IDENTIFICADAS
+
+##### **VIOLAÇÃO #1: Password no Schema de User (UserCreate)**
+
+**Arquivo:** `src/robbot/schemas/user.py:6-20`
+
+```python
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)  # ❌ SENHA É CREDENCIAL, NÃO PERFIL
+    full_name: str | None = None
+    role: str = "user"
+```
+
+**Problema:**
+- `password` é **credencial de autenticação**, não dado de perfil
+- `UserCreate` é usado tanto em **signup** (Auth) quanto potencialmente em CRUD de User
+- Viola Single Responsibility Principle
+
+**Impacto:**
+- Confusão conceitual entre User (entidade de negócio) e Auth (segurança)
+- Risco de vazamento acidental de senha em logs/responses
+- Impossibilidade de testar Auth sem User
+
+**Solução Requerida:**
+- Criar `SignupRequest` em `schemas/auth.py` com `email + password + full_name`
+- Remover `password` de `UserCreate`
+- `UserCreate` deve ter apenas dados de perfil (`full_name`, `role`)
+
+---
+
+##### **VIOLAÇÃO #2: hashed_password no UserModel (Domínio)**
+
+**Arquivo:** `src/robbot/infra/db/models/user_model.py:17`
+
+```python
+class UserModel(Base):
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)  # ❌ CREDENCIAL NO MODEL
+    full_name = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+```
+
+**Problema:**
+- `hashed_password` é **credencial**, não atributo de identidade
+- Qualquer service que acessa `UserModel` vê a senha hashada
+- Viola information hiding e least privilege
+
+**Impacto:**
+- User queries expõem hash de senha desnecessariamente
+- Logs podem incluir hash acidentalmente
+- Impossível auditar acesso a credenciais vs acesso a perfil
+
+**Solução Requerida:**
+- Criar `CredentialModel` separado:
+  ```python
+  class CredentialModel(Base):
+      user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+      hashed_password = Column(String(255), nullable=False)
+      mfa_secret = Column(String(64), nullable=True)
+      email_verified = Column(Boolean, default=False)
+      created_at = Column(DateTime)
+      updated_at = Column(DateTime)
+  ```
+- `UserModel` deve conter **apenas** dados de domínio
+
+---
+
+##### **VIOLAÇÃO #3: GET /auth/me retorna UserOut (Mistura de Responsabilidade)**
+
+**Arquivo:** `src/robbot/adapters/controllers/auth_controller.py:83-87`
+
+```python
+@router.get("/me", response_model=UserOut)  # ❌ /auth retornando dados de USER
+def read_me(current_user=Depends(get_current_user)):
+    return current_user
+```
+
+**Problema:**
+- `/auth/me` está no módulo **Auth** mas retorna **User** profile
+- Semanticamente incorreto: "quem sou eu na autenticação" vs "meu perfil"
+- Duplica responsabilidade com potencial `/users/me`
+
+**Impacto:**
+- Confusão de contratos: o que é Auth vs User?
+- Impossível evoluir `/auth/me` para dados de sessão/MFA sem quebrar contrato
+- Clientes não sabem se devem chamar `/auth/me` ou `/users/me`
+
+**Solução Requerida:**
+- `/auth/me` deve retornar `AuthSessionResponse`:
+  ```python
+  class AuthSessionResponse(BaseModel):
+      user_id: int
+      session_id: str
+      expires_at: datetime
+      mfa_enabled: bool
+      last_login: datetime
+  ```
+- Criar `/users/me` para retornar `UserOut` (perfil completo)
+
+---
+
+##### **VIOLAÇÃO #4: AuthService faz signup de User (Mistura de Domínios)**
+
+**Arquivo:** `src/robbot/services/auth_services.py:28-38`
+
+```python
+def signup(self, payload: UserCreate) -> UserOut:  # ❌ Auth criando User
+    existing = self.repo.get_by_email(payload.email)
+    if existing:
+        raise AuthException("User already exists")
+    security.validate_password_policy(payload.password)
+    hashed = security.get_password_hash(payload.password)
+    user = self.repo.create_user(payload, hashed_password=hashed)  # ❌ Auth usando UserRepository
+    return UserOut.model_validate(user)
+```
+
+**Problema:**
+- `AuthService` está **criando usuários** (responsabilidade de `UserService`)
+- `AuthService` usa `UserRepository` diretamente
+- Dependência bidirecional: Auth ↔ User (deveria ser Auth → User)
+
+**Impacto:**
+- Impossível criar usuário sem senha (ex: SSO, convite de admin)
+- AuthService acoplado a modelo de User
+- Testes de Auth requerem DB de User
+
+**Solução Requerida:**
+- Dividir signup em 2 etapas:
+  1. `UserService.create_user(email, full_name, role)` → retorna `user_id`
+  2. `AuthService.set_credentials(user_id, password)` → cria credencial
+- `POST /auth/register` orquestra ambos (controller faz coordenação)
+
+---
+
+##### **VIOLAÇÃO #5: UserUpdate pode alterar is_active (Desativação é Security)**
+
+**Arquivo:** `src/robbot/schemas/user.py:40-43`
+
+```python
+class UserUpdate(BaseModel):
+    full_name: str | None = None
+    is_active: bool | None = None  # ❌ Alterar status ativo é operação de segurança
+```
+
+**Problema:**
+- `is_active` é flag de **segurança** (bloquear acesso), não dado de perfil
+- User não deve poder alterar seu próprio status ativo
+- Mudança de `is_active` deveria invalidar sessões
+
+**Impacto:**
+- User pode se reativar sozinho
+- Desativação não invalida tokens ativos
+- Sem auditoria de bloqueio/desbloqueio
+
+**Solução Requerida:**
+- Remover `is_active` de `UserUpdate`
+- Criar endpoint `POST /auth/users/{id}/block` (admin only) em **Auth**
+- Criar endpoint `POST /auth/users/{id}/unblock` (admin only)
+- Bloqueio deve revogar todos os tokens do usuário
+
+---
+
+##### **VIOLAÇÃO #6: Falta Refresh Token Rotation**
+
+**Arquivo:** `src/robbot/services/auth_services.py:58-68`
+
+```python
+def refresh(self, refresh_token: str) -> Token:
+    if self.token_repo.is_revoked(refresh_token):
+        raise AuthException("Token revoked")
+    payload = security.decode_token(refresh_token, verify_exp=True)
+    if payload.get("type") != "refresh":
+        raise AuthException("Invalid token type")
+    subject = payload.get("sub")
+    tokens = security.create_access_refresh_tokens(subject)  # ❌ Retorna NOVO refresh sem revogar o antigo
+    return Token(**tokens)
+```
+
+**Problema:**
+- Refresh não revoga o token antigo (rotation não implementada)
+- Permite uso ilimitado do mesmo refresh token até expiração
+- Vulnerável a roubo de token (não detecta uso duplicado)
+
+**Impacto:**
+- Se refresh token vazar, atacante tem 7 dias para usar
+- Impossível detectar replay attack
+- Não implementa best practice de OAuth2
+
+**Solução Requerida:**
+```python
+def refresh(self, refresh_token: str) -> Token:
+    # 1. Verificar se já foi revogado
+    if self.token_repo.is_revoked(refresh_token):
+        raise AuthException("Token revoked")
+    
+    # 2. Revogar o token usado (rotation)
+    self.token_repo.revoke(refresh_token)
+    
+    # 3. Gerar NOVOS tokens
+    payload = security.decode_token(refresh_token, verify_exp=True)
+    subject = payload.get("sub")
+    tokens = security.create_access_refresh_tokens(subject)
+    
+    return Token(**tokens)
+```
+
+---
+
+##### **VIOLAÇÃO #7: Reset de Senha não Invalida Sessões**
+
+**Arquivo:** `src/robbot/services/auth_services.py:90-105`
+
+```python
+def reset_password(self, token: str, new_password: str) -> None:
+    # ... validações ...
+    security.validate_password_policy(new_password)
+    user.hashed_password = security.get_password_hash(new_password)
+    self.repo.update_user(user)  # ❌ Apenas atualiza senha, não revoga tokens
+```
+
+**Problema:**
+- Trocar senha não invalida sessões ativas
+- Se conta foi comprometida, atacante mantém acesso após reset
+- Viola princípio de "reset deve encerrar tudo"
+
+**Impacto:**
+- Reset de senha não protege contra acesso não autorizado em andamento
+- Sessões antigas permanecem válidas por até 7 dias
+
+**Solução Requerida:**
+```python
+def reset_password(self, token: str, new_password: str) -> None:
+    # ... validações ...
+    user_id = int(payload.get("sub"))
+    
+    # 1. Atualizar senha
+    credential = self.credential_repo.get_by_user_id(user_id)
+    credential.hashed_password = security.get_password_hash(new_password)
+    credential.updated_at = datetime.utcnow()
+    
+    # 2. INVALIDAR TODAS AS SESSÕES (revogar todos os tokens)
+    self.token_repo.revoke_all_for_user(user_id)
+    
+    # 3. Auditar evento
+    self.audit_service.log_password_reset(user_id)
+```
+
+---
+
+##### **VIOLAÇÃO #8: Falta Rate Limiting em Endpoints Críticos**
+
+**Endpoints sem proteção:**
+- `POST /auth/token` (login) - vulnerável a brute force
+- `POST /auth/refresh` - vulnerável a token grinding
+- `POST /auth/password-recovery` - vulnerável a spam/DoS
+- `POST /auth/password-reset` - vulnerável a brute force de token
+
+**Impacto:**
+- Atacante pode tentar milhares de senhas por segundo
+- Atacante pode enumerar emails válidos
+- Sem proteção contra abuso
+
+**Solução Requerida:**
+- Implementar rate limiting baseado em IP + user_id:
+  ```python
+  # Login: 5 tentativas / 15 minutos
+  # Refresh: 10 tentativas / 1 minuto  
+  # Password recovery: 3 tentativas / 1 hora
+  # Password reset: 5 tentativas / 15 minutos
+  ```
+- Usar Redis para contadores
+- Retornar `429 Too Many Requests` com `Retry-After` header
+
+---
+
+##### **VIOLAÇÃO #9: Falta Sistema de Sessões Gerenciáveis**
+
+**Ausente no código:**
+- Nenhuma tabela `sessions` ou `user_sessions`
+- Impossível listar sessões ativas
+- Impossível revogar sessão específica
+- Impossível fazer logout de todos os dispositivos
+
+**Impacto:**
+- Usuário não pode ver onde está logado
+- Impossível fazer logout remoto (celular perdido)
+- Tokens revogados individualmente, não por sessão
+
+**Solução Requerida:**
+- Criar `SessionModel`:
+  ```python
+  class SessionModel(Base):
+      id = Column(UUID, primary_key=True)
+      user_id = Column(Integer, ForeignKey("users.id"))
+      refresh_token_hash = Column(String(64))  # Hash do refresh token
+      device_info = Column(String(255))
+      ip_address = Column(String(45))
+      created_at = Column(DateTime)
+      last_used_at = Column(DateTime)
+      expires_at = Column(DateTime)
+  ```
+- Endpoints:
+  - `GET /auth/sessions` - listar sessões
+  - `POST /auth/sessions/{id}/revoke` - revogar sessão específica
+  - `POST /auth/sessions/revoke-all` - revogar todas (exceto atual)
+
+---
+
+##### **VIOLAÇÃO #10: Falta Email Verification**
+
+**Ausente no código:**
+- Nenhum campo `email_verified` em UserModel
+- Nenhum token de verificação
+- Nenhum endpoint `/auth/email/verify`
+
+**Impacto:**
+- Usuários podem se registrar com emails falsos
+- Impossível recuperar senha (email não verificado)
+- Sem garantia de contato válido
+
+**Solução Requerida:**
+- Adicionar `email_verified: bool` em `CredentialModel`
+- Criar fluxo:
+  1. `POST /auth/register` → envia email com token
+  2. `GET /auth/email/verify?token=...` → marca como verificado
+  3. `POST /auth/email/resend` → reenvia token
+- Bloquear login se `email_verified=false`
+
+---
+
+##### **VIOLAÇÃO #11: Falta Suporte a MFA (Multi-Factor Authentication)**
+
+**Ausente no código:**
+- Nenhum campo `mfa_enabled` ou `mfa_secret`
+- Nenhum endpoint de setup/verify MFA
+- Nenhum TOTP (Time-based One-Time Password)
+
+**Impacto:**
+- Sem segunda camada de proteção
+- Credenciais roubadas = acesso total
+- Não atende requisitos de compliance (LGPD, SOC2)
+
+**Solução Requerida:**
+- Adicionar em `CredentialModel`:
+  ```python
+  mfa_enabled = Column(Boolean, default=False)
+  mfa_secret = Column(String(64), nullable=True)  # TOTP secret
+  backup_codes = Column(ARRAY(String), nullable=True)
+  ```
+- Endpoints:
+  - `POST /auth/mfa/setup` → retorna QR code + secret
+  - `POST /auth/mfa/verify` → valida código TOTP
+  - `POST /auth/mfa/disable` → desabilita (requer senha)
+  - `GET /auth/mfa/backup-codes` → gera códigos de recuperação
+- Modificar login para exigir TOTP se `mfa_enabled=true`
+
+---
+
+##### **VIOLAÇÃO #12: Auditoria de Eventos de Segurança Incompleta**
+
+**Existente mas incompleto:**
+- `AuditLog` existe mas não é usado em Auth
+- Eventos críticos não auditados:
+  * Login (sucesso/falha)
+  * Logout
+  * Refresh token
+  * Password reset
+  * Email verification
+  * MFA enable/disable
+  * Account lock/unlock
+
+**Impacto:**
+- Impossível rastrear comprometimento
+- Sem evidência forense
+- Não atende compliance
+
+**Solução Requerida:**
+- Integrar `AuditService` em **todos** os métodos de `AuthService`:
+  ```python
+  def authenticate_user(self, email: str, password: str) -> Token:
+      # ... validações ...
+      if success:
+          self.audit.log_login_success(user_id, ip, user_agent)
+      else:
+          self.audit.log_login_failure(email, ip, reason)
+  ```
+- Armazenar: `user_id`, `action`, `ip`, `user_agent`, `timestamp`, `metadata`
+
+---
+
+### 📊 MATRIZ DE VIOLAÇÕES
+
+| # | Violação | Severidade | Impacto | Esforço | Prioridade |
+|---|----------|------------|---------|---------|------------|
+| 1 | Password em UserCreate | ALTA | Segurança | MÉDIO | P0 |
+| 2 | hashed_password em UserModel | ALTA | Arquitetura | ALTO | P0 |
+| 3 | GET /auth/me misturado | MÉDIA | API Design | BAIXO | P1 |
+| 4 | AuthService cria User | ALTA | Acoplamento | MÉDIO | P0 |
+| 5 | is_active em UserUpdate | ALTA | Segurança | BAIXO | P0 |
+| 6 | Refresh sem rotation | CRÍTICA | Segurança | MÉDIO | P0 |
+| 7 | Reset não invalida sessões | CRÍTICA | Segurança | MÉDIO | P0 |
+| 8 | Sem rate limiting | CRÍTICA | DoS/Brute Force | MÉDIO | P0 |
+| 9 | Sem gerenciamento de sessões | ALTA | UX/Segurança | ALTO | P1 |
+| 10 | Sem email verification | MÉDIA | Segurança | MÉDIO | P2 |
+| 11 | Sem MFA | ALTA | Segurança | ALTO | P2 |
+| 12 | Auditoria incompleta | MÉDIA | Compliance | BAIXO | P1 |
+
+**Legenda:**
+- **P0:** Bloqueante para produção (deve ser feito ANTES de deploy)
+- **P1:** Crítico mas não bloqueante (1-2 sprints após MVP)
+- **P2:** Importante para roadmap (3-6 meses)
+
+---
+
+### 🎯 CONTRATO IDEAL - AUTH vs USER
+
+#### **MÓDULO AUTH (/auth/\*)**
+
+**Responsabilidades EXCLUSIVAS:**
+- Autenticação (login/logout)
+- Credenciais (senha, MFA)
+- Sessões (JWT, refresh tokens)
+- Proteção (rate limit, anti-brute force)
+- Auditoria de segurança
+
+**Endpoints Obrigatórios:**
+
+```
+Registro e Login:
+POST   /auth/register        → SignupRequest → 201 Created
+POST   /auth/login           → LoginRequest → 200 Token
+POST   /auth/logout          → 204 No Content
+POST   /auth/refresh         → RefreshRequest → 200 Token
+GET    /auth/me              → AuthSessionResponse (sessão atual, não perfil)
+
+Senha:
+POST   /auth/password/forgot  → ForgotPasswordRequest → 202 Accepted
+POST   /auth/password/reset   → ResetPasswordRequest → 200 OK
+POST   /auth/password/change  → ChangePasswordRequest → 200 OK (requer auth)
+
+Email:
+POST   /auth/email/verify     → VerifyEmailRequest → 200 OK
+POST   /auth/email/resend     → ResendEmailRequest → 202 Accepted
+
+Sessões:
+GET    /auth/sessions         → SessionListResponse (requer auth)
+POST   /auth/sessions/{id}/revoke → 204 No Content
+POST   /auth/sessions/revoke-all  → 204 No Content
+
+MFA:
+POST   /auth/mfa/setup        → MfaSetupResponse (QR code + secret)
+POST   /auth/mfa/verify       → MfaVerifyRequest → 200 OK
+POST   /auth/mfa/disable      → MfaDisableRequest → 200 OK
+GET    /auth/mfa/backup-codes → BackupCodesResponse
+
+Admin (Segurança):
+POST   /auth/users/{id}/block   → 200 OK (admin only, invalida sessões)
+POST   /auth/users/{id}/unblock → 200 OK (admin only)
+```
+
+**Regras Obrigatórias:**
+- Access token: 15 minutos (JWT)
+- Refresh token: 7 dias (JWT + DB rotation)
+- Refresh token rotation obrigatória
+- Password reset: token de uso único, 15min expiry
+- Password change: invalida TODAS as sessões
+- Rate limiting:
+  * Login: 5 tentativas / 15min por IP
+  * Refresh: 10 / 1min por user
+  * Password recovery: 3 / 1h por email
+- Auditoria completa de todos os eventos
+
+**NÃO PODE:**
+- Expor dados de perfil (nome, foto, preferências)
+- Atualizar dados de negócio
+- Criar CRUD de user
+
+---
+
+#### **MÓDULO USER (/users/\*)**
+
+**Responsabilidades EXCLUSIVAS:**
+- Perfil (nome, foto, bio)
+- Dados cadastrais
+- Preferências
+- Estado funcional no domínio
+
+**Endpoints Obrigatórios:**
+
+```
+Perfil Próprio:
+GET    /users/me             → UserProfileResponse (requer auth)
+PATCH  /users/me             → UpdateProfileRequest → UserProfileResponse
+
+Admin (CRUD):
+GET    /users                → UserListResponse (admin only, paginado)
+GET    /users/{id}           → UserProfileResponse (admin only)
+PATCH  /users/{id}           → UpdateProfileRequest → UserProfileResponse (admin only)
+PATCH  /users/{id}/status    → UpdateStatusRequest → 200 OK (admin only, muda status funcional, NÃO is_active)
+```
+
+**Regras Obrigatórias:**
+- Sempre requer access token válido
+- Nenhuma operação de senha
+- Nenhuma emissão/validação de token
+- Apenas dados de domínio (NOT credentials)
+
+**NÃO PODE:**
+- Acessar `hashed_password`, `mfa_secret`, `email_verified`
+- Emitir ou validar JWT
+- Alterar `is_active` (é flag de segurança)
+- Criar usuário sem autenticação (signup é Auth)
+
+---
+
+### 🛠️ PLANO DE REFATORAÇÃO (ROADMAP)
+
+#### **FASE 0: PREPARAÇÃO (1 sprint - 2 semanas)** ✅ **CONCLUÍDA (23/12/2025)**
+
+**Objetivo:** Criar estrutura sem quebrar código existente
+
+**Tasks:**
+- ✅ Criar `schemas/auth.py` com todos os DTOs de Auth (23 schemas criados)
+- ✅ Criar `CredentialModel` (não migrar dados ainda)
+- ✅ Criar `AuthSessionModel` (gerenciamento de sessões)
+- ✅ Implementar `CredentialRepository` (CRUD completo)
+- ✅ Implementar `AuthSessionRepository` (CRUD + revocation)
+- ✅ Implementar rate limiting decorator (`@rate_limit`)
+- ✅ Aplicar rate limiting em endpoints auth (login, signup, refresh, password)
+- ✅ Inicializar rate limiter no app startup
+- ✅ Integrar novos repositories no AuthService
+- ⏳ Implementar audit hooks em AuthService (FASE 1)
+
+**Entrega:** Código novo coexistindo com antigo (sem migração ainda) ✅
+
+**Commit:** `feat(auth): FASE 0 - Preparação para refatoração Auth vs User` (42be09b)
+
+**Arquivos Criados:**
+- `src/robbot/schemas/auth.py` (300+ linhas, 23 schemas)
+- `src/robbot/infra/db/models/credential_model.py` (CredentialModel)
+- `src/robbot/infra/db/models/auth_session_model.py` (AuthSessionModel)
+- `src/robbot/adapters/repositories/credential_repository.py` (180+ linhas)
+- `src/robbot/adapters/repositories/auth_session_repository.py` (220+ linhas)
+- `src/robbot/core/rate_limiting.py` (250+ linhas)
+
+**Arquivos Modificados:**
+- `src/robbot/infra/db/models/user_model.py` (relationships adicionados)
+- `src/robbot/services/auth_services.py` (repositories injetados)
+- `src/robbot/adapters/controllers/auth_controller.py` (rate limits aplicados)
+- `src/robbot/api/v1/dependencies.py` (rate limiter init)
+- `src/robbot/main.py` (startup event)
+
+---
+
+#### **FASE 1: REFATORAÇÃO AUTH (2 sprints - 4 semanas)** 🔄 **PRÓXIMA**
+
+**Objetivo:** Corrigir todas as violações P0 de Auth
+
+**Tasks:**
+
+**1.1 - Separar Credenciais de User**
+- [ ] Migration: mover `hashed_password` de `users` → `credentials`
+- [ ] Atualizar `UserRepository` para não expor `hashed_password`
+- [ ] Criar `CredentialService` com métodos:
+  - `set_password(user_id, password)`
+  - `verify_password(user_id, password)`
+  - `change_password(user_id, old_password, new_password)`
+
+**1.2 - Implementar Refresh Token Rotation**
+- [ ] Modificar `AuthService.refresh()` para revogar token usado
+- [ ] Adicionar teste de rotation
+- [ ] Adicionar detecção de replay attack (token usado 2x = revoga TODOS)
+
+**1.3 - Reset de Senha Invalida Sessões**
+- [ ] Criar `TokenRepository.revoke_all_for_user(user_id)`
+- [ ] Modificar `AuthService.reset_password()` para chamar revoke_all
+- [ ] Adicionar auditoria de reset
+
+**1.4 - Implementar Rate Limiting**
+- ✅ Criar decorator `@rate_limit(max=5, window=900, key="ip")` (FASE 0)
+- ✅ Aplicar em:
+  - `POST /auth/token` → 5/15min por IP (FASE 0)
+  - `POST /auth/refresh` → 10/1min por user (FASE 0)
+  - `POST /auth/password-recovery` → 3/1h por email (FASE 0)
+  - `POST /auth/password-reset` → 5/15min por IP (FASE 0)
+
+**1.5 - Auditoria Completa**
+- [ ] Integrar `AuditService` em todos os métodos de `AuthService`
+- [ ] Logar eventos:
+  - `login_success`, `login_failure`, `logout`
+  - `refresh_token`, `password_reset`, `password_change`
+  - `account_locked`, `account_unlocked`
+
+**Entrega:** Auth seguro e isolado de User (P0 resolvido)
+
+---
+
+#### **FASE 2: REFATORAÇÃO USER (1 sprint - 2 semanas)**
+
+**Objetivo:** Limpar User de responsabilidades de Auth
+
+**Tasks:**
+
+**2.1 - Remover Password de UserCreate**
+- [ ] Criar `SignupRequest` em `schemas/auth.py`
+- [ ] Modificar `POST /auth/register` para usar `SignupRequest`
+- [ ] Remover `password` de `UserCreate`
+- [ ] Atualizar testes
+
+**2.2 - Remover is_active de UserUpdate**
+- [ ] Remover `is_active` de `UserUpdate`
+- [ ] Criar `POST /auth/users/{id}/block` (admin only)
+- [ ] Criar `POST /auth/users/{id}/unblock` (admin only)
+- [ ] Bloqueio deve chamar `TokenRepository.revoke_all_for_user()`
+
+**2.3 - Separar /auth/me de /users/me**
+- [ ] Criar `AuthSessionResponse` em `schemas/auth.py`
+- [ ] Modificar `GET /auth/me` para retornar `AuthSessionResponse`
+- [ ] Criar `GET /users/me` que retorna `UserProfileResponse`
+- [ ] Atualizar documentação de API
+
+**Entrega:** User limpo, apenas dados de domínio
+
+---
+
+#### **FASE 3: SESSÕES GERENCIÁVEIS (1 sprint - 2 semanas)**
+
+**Objetivo:** Implementar gerenciamento de sessões
+
+**Tasks:**
+- [ ] Migration: criar tabela `sessions`
+- [ ] Modificar `AuthService.authenticate()` para criar sessão
+- [ ] Modificar `AuthService.refresh()` para atualizar `last_used_at`
+- [ ] Implementar `GET /auth/sessions`
+- [ ] Implementar `POST /auth/sessions/{id}/revoke`
+- [ ] Implementar `POST /auth/sessions/revoke-all`
+- [ ] Adicionar device fingerprinting (user-agent + IP)
+
+**Entrega:** Usuário pode ver e gerenciar sessões ativas
+
+---
+
+#### **FASE 4: EMAIL VERIFICATION (1 sprint - 2 semanas)**
+
+**Objetivo:** Garantir emails válidos
+
+**Tasks:**
+- [ ] Adicionar `email_verified` em `CredentialModel`
+- [ ] Modificar `POST /auth/register` para:
+  - Criar user com `email_verified=false`
+  - Enviar email com token de verificação
+  - Retornar 201 mas user não pode fazer login
+- [ ] Implementar `GET /auth/email/verify?token=...`
+- [ ] Implementar `POST /auth/email/resend`
+- [ ] Bloquear login se `email_verified=false`
+- [ ] Atualizar templates de email
+
+**Entrega:** Proteção contra emails falsos
+
+---
+
+#### **FASE 5: MFA (2 sprints - 4 semanas)**
+
+**Objetivo:** Segunda camada de autenticação
+
+**Tasks:**
+- [ ] Adicionar `mfa_enabled`, `mfa_secret`, `backup_codes` em `CredentialModel`
+- [ ] Instalar biblioteca TOTP (pyotp)
+- [ ] Implementar `POST /auth/mfa/setup`:
+  - Gerar secret
+  - Retornar QR code (base64)
+  - Não salvar até verificação
+- [ ] Implementar `POST /auth/mfa/verify`:
+  - Validar código TOTP
+  - Salvar secret se válido
+  - Ativar `mfa_enabled=true`
+- [ ] Implementar `POST /auth/mfa/disable`:
+  - Exigir senha + código TOTP
+  - Limpar secret
+  - Revogar todas as sessões
+- [ ] Implementar `GET /auth/mfa/backup-codes`:
+  - Gerar 10 códigos únicos
+  - Hash e salvar
+  - Retornar em plaintext (única vez)
+- [ ] Modificar `POST /auth/login`:
+  - Se `mfa_enabled=true`, retornar 200 com `mfa_required=true`
+  - Exigir `POST /auth/mfa/verify` para emitir tokens
+- [ ] Adicionar testes de TOTP
+
+**Entrega:** MFA completo com backup codes
+
+---
+
+### 📅 CRONOGRAMA ESTIMADO
+
+| Fase | Duração | Complexidade | Risco | Prioridade |
+|------|---------|--------------|-------|------------|
+| Fase 0 | 2 semanas | Baixa | Baixo | Preparação |
+| Fase 1 | 4 semanas | Alta | Alto | P0 - CRÍTICA |
+| Fase 2 | 2 semanas | Média | Médio | P0 - CRÍTICA |
+| Fase 3 | 2 semanas | Média | Baixo | P1 |
+| Fase 4 | 2 semanas | Baixa | Baixo | P2 |
+| Fase 5 | 4 semanas | Alta | Médio | P2 |
+
+**Total:** 16 semanas (4 meses)  
+**MVP Seguro (Fases 0-2):** 8 semanas (2 meses)
+
+---
+
+### ⚡ DECISÕES ARQUITETURAIS
+
+#### **DA-001: Credenciais Separadas de User**
+
+**Contexto:** `hashed_password` está em `UserModel`, violando SRP
+
+**Decisão:** Criar `CredentialModel` separado com relação 1:1 com `UserModel`
+
+**Rationale:**
+- User é entidade de domínio (negócio)
+- Credential é entidade de segurança (infraestrutura)
+- Separação permite:
+  * User queries sem expor credenciais
+  * Múltiplos tipos de auth no futuro (SSO, OAuth)
+  * Auditoria granular de mudanças de senha
+
+**Consequências:**
+- (+) Isolamento de responsabilidades
+- (+) Queries de User mais rápidas (menos colunas)
+- (+) Suporte futuro a login sem senha (magic link, WebAuthn)
+- (-) Join adicional em autenticação (mitigado com eager loading)
+- (-) Migration complexa (mover dados entre tabelas)
+
+**Status:** APROVADA
+
+---
+
+#### **DA-002: Refresh Token Rotation Obrigatória**
+
+**Contexto:** Refresh token atual não é revogado ao ser usado
+
+**Decisão:** Implementar rotation: ao usar refresh token, revogá-lo e emitir novo par
+
+**Rationale:**
+- Padrão OAuth2 recomendado (RFC 6749)
+- Detecta roubo de token (token usado 2x = compromisso)
+- Reduz janela de ataque de 7 dias para 1 uso
+
+**Consequências:**
+- (+) Segurança contra token theft
+- (+) Detecção de replay attack
+- (-) Clientes devem atualizar stored refresh token
+- (-) Mais writes no DB (mitigado com índice em `token`)
+
+**Status:** APROVADA
+
+---
+
+#### **DA-003: Rate Limiting em Auth Endpoints**
+
+**Contexto:** Endpoints de login/reset vulneráveis a brute force
+
+**Decisão:** Implementar rate limiting baseado em Redis com chaves compostas (IP + endpoint)
+
+**Rationale:**
+- Previne brute force de senha
+- Previne enumeração de emails
+- Previne DoS em endpoints críticos
+
+**Limites Definidos:**
+- Login: 5 tentativas / 15min por IP
+- Refresh: 10 / 1min por user_id
+- Password recovery: 3 / 1h por email
+- Password reset: 5 / 15min por IP
+
+**Consequências:**
+- (+) Proteção contra abuso
+- (+) Redis já disponível (usado em WAHA)
+- (-) Dependência de Redis (mitigado: degradação graceful)
+- (-) Possível bloqueio legítimo (mitigado: limites generosos)
+
+**Status:** APROVADA
+
+---
+
+#### **DA-004: Sessões Persistidas em DB**
+
+**Contexto:** Tokens são stateless (JWT), impossível listar/gerenciar sessões
+
+**Decisão:** Criar `SessionModel` que mapeia refresh_token → sessão
+
+**Rationale:**
+- Permite listar dispositivos logados
+- Permite logout seletivo (revoga sessão específica)
+- Permite logout global (revoga todas exceto atual)
+- Melhora UX (usuário vê onde está logado)
+
+**Estrutura:**
+```python
+class SessionModel(Base):
+    id: UUID (PK)
+    user_id: int (FK)
+    refresh_token_hash: str (SHA256 do refresh token)
+    device_info: str (user-agent)
+    ip_address: str
+    created_at: datetime
+    last_used_at: datetime
+    expires_at: datetime
+```
+
+**Consequências:**
+- (+) Gerenciamento granular de sessões
+- (+) Auditoria de acessos
+- (+) UX melhorada
+- (-) Storage adicional (mitigado: cleanup de sessões expiradas)
+- (-) Join em refresh (mitigado: índice em `refresh_token_hash`)
+
+**Status:** APROVADA
+
+---
+
+### 🧪 CRITÉRIOS DE ACEITAÇÃO
+
+#### **Para Fase 1 (Auth Refatorado):**
+
+✅ **Funcional:**
+- [ ] Refresh token rotation: token usado é revogado
+- [ ] Reset de senha invalida TODOS os tokens
+- [ ] Rate limiting funciona: 6ª tentativa de login retorna 429
+- [ ] Auditoria: login/logout/refresh geram logs
+
+✅ **Segurança:**
+- [ ] `hashed_password` não exposto em queries de User
+- [ ] Tokens revogados não são aceitos
+- [ ] Password policy validado (mín 8 chars, regex opcional)
+
+✅ **Testes:**
+- [ ] 100% cobertura de `AuthService`
+- [ ] Testes de rate limiting (mock Redis)
+- [ ] Testes de rotation (token usado 2x = erro)
+- [ ] Testes de auditoria (eventos logados)
+
+---
+
+#### **Para Fase 2 (User Limpo):**
+
+✅ **API:**
+- [ ] `GET /auth/me` retorna `AuthSessionResponse` (sessão)
+- [ ] `GET /users/me` retorna `UserProfileResponse` (perfil)
+- [ ] `POST /auth/users/{id}/block` invalida sessões
+- [ ] `PATCH /users/me` não aceita `is_active`
+
+✅ **Schemas:**
+- [ ] `SignupRequest` usado em `POST /auth/register`
+- [ ] `UserCreate` não tem campo `password`
+- [ ] `UserUpdate` não tem campo `is_active`
+
+✅ **Testes:**
+- [ ] 100% cobertura de `UserService`
+- [ ] Testes de bloqueio (sessões invalidadas)
+
+---
+
+#### **Para Fase 3 (Sessões):**
+
+✅ **Funcional:**
+- [ ] `GET /auth/sessions` lista sessões ativas
+- [ ] `POST /auth/sessions/{id}/revoke` mata sessão específica
+- [ ] `POST /auth/sessions/revoke-all` mata todas exceto atual
+- [ ] Device info capturado (user-agent, IP)
+
+✅ **UX:**
+- [ ] Sessão mostra "último uso" atualizado a cada refresh
+- [ ] Sessão mostra device/browser/localização estimada
+
+---
+
+### 📚 REFERÊNCIAS
+
+**Padrões e RFCs:**
+- [RFC 6749 - OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc6749) - Refresh token rotation
+- [RFC 6819 - OAuth 2.0 Threat Model](https://datatracker.ietf.org/doc/html/rfc6819) - Security best practices
+- [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
+- [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
+
+**Bibliotecas Recomendadas:**
+- `pyotp` - TOTP para MFA
+- `qrcode` - Geração de QR codes para MFA setup
+- `slowapi` - Rate limiting para FastAPI
+- `python-jose` - JWT com suporte a rotação
+
+**Decisões de Design:**
+- Credenciais separadas de User (DA-001)
+- Refresh token rotation (DA-002)
+- Rate limiting em Redis (DA-003)
+- Sessões persistidas (DA-004)
+
+---
+
+### 🎬 PRÓXIMOS PASSOS
+
+**IMEDIATO (Esta Sprint):**
+1. ✅ Documentar auditoria no BACKLOG.md (este documento)
+2. ⏳ Apresentar para tech lead / product owner
+3. ⏳ Aprovar priorização (P0 antes de produção)
+4. ⏳ Criar issues no GitHub para Fase 0
+
+**SPRINT 1-2 (Próximas 4 semanas):**
+- Executar Fase 0 (preparação)
+- Iniciar Fase 1 (refatoração Auth)
+
+---
+
+## 🔄 MAPA COMPLETO DE IMPACTO DA REFATORAÇÃO
+
+**Data:** 22/12/2025  
+**Escopo:** Refatoração Auth vs User (Fases 0-5)  
+**Objetivo:** Identificar TODOS os arquivos que precisarão ser modificados
+
+### 📊 RESUMO EXECUTIVO DE IMPACTO
+
+**Total de Arquivos Afetados:** 47 arquivos  
+**Arquivos Novos (Criação):** 15  
+**Arquivos Modificados:** 28  
+**Arquivos Deletados:** 0  
+**Migrations Novas:** 5  
+**Testes a Criar:** 12  
+**Testes a Modificar:** 8
+
+**Breakdown por Categoria:**
+- 🆕 Schemas: 2 novos arquivos
+- 🆕 Models: 2 novos (CredentialModel, SessionModel)
+- 🆕 Repositories: 2 novos
+- 🆕 Services: 2 novos
+- 🔧 Controllers: 2 modificados
+- 🔧 Core/Security: 1 modificado
+- 🗄️ Migrations: 5 novas
+- 🧪 Tests: 20 arquivos afetados
+
+---
+
+### 📁 FASE 0: PREPARAÇÃO (2 semanas) - Arquivos Novos
+
+**Objetivo:** Criar estrutura sem quebrar código existente
+
+#### 🆕 Arquivos a CRIAR (9 novos)
+
+##### **1. Schemas (Auth)**
+📄 **`src/robbot/schemas/auth.py`** (NOVO - 200 linhas)
+```python
+"""Authentication-specific schemas."""
+from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime
+
+class SignupRequest(BaseModel):
+    """Signup request with email + password."""
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    full_name: str | None = None
+
+class LoginRequest(BaseModel):
+    """Login credentials."""
+    email: EmailStr
+    password: str
+
+class ForgotPasswordRequest(BaseModel):
+    """Password recovery request."""
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    """Password reset with token."""
+    token: str
+    new_password: str = Field(..., min_length=8)
+
+class ChangePasswordRequest(BaseModel):
+    """Change password (authenticated user)."""
+    old_password: str
+    new_password: str = Field(..., min_length=8)
+
+class VerifyEmailRequest(BaseModel):
+    """Email verification."""
+    token: str
+
+class ResendEmailRequest(BaseModel):
+    """Resend verification email."""
+    email: EmailStr
+
+class MfaSetupResponse(BaseModel):
+    """MFA setup data."""
+    secret: str
+    qr_code: str  # base64 PNG
+    backup_codes: list[str]
+
+class MfaVerifyRequest(BaseModel):
+    """MFA verification."""
+    code: str
+
+class MfaDisableRequest(BaseModel):
+    """Disable MFA."""
+    password: str
+    code: str
+
+class AuthSessionResponse(BaseModel):
+    """Current auth session info (NOT user profile)."""
+    user_id: int
+    session_id: str
+    expires_at: datetime
+    mfa_enabled: bool
+    email_verified: bool
+    last_login: datetime
+
+class SessionOut(BaseModel):
+    """User session details."""
+    id: str
+    device_info: str
+    ip_address: str
+    created_at: datetime
+    last_used_at: datetime
+    expires_at: datetime
+    is_current: bool
+
+class SessionListResponse(BaseModel):
+    """List of active sessions."""
+    sessions: list[SessionOut]
+    total: int
+
+class BackupCodesResponse(BaseModel):
+    """MFA backup codes (one-time display)."""
+    codes: list[str]
+    warning: str = "Save these codes securely. They won't be shown again."
+```
+
+**Dependências:** Nenhuma (arquivo base)  
+**Impacto:** 0 (arquivo novo)  
+**Testes:** `tests/unit/test_auth_schemas.py` (novo)
+
+---
+
+##### **2. Models (Database)**
+📄 **`src/robbot/infra/db/models/credential_model.py`** (NOVO - 80 linhas)
+```python
+"""Credential model - separated from User."""
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, ARRAY
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from robbot.infra.db.base import Base
+
+class CredentialModel(Base):
+    """User credentials (passwords, MFA, verification)."""
+    __tablename__ = "credentials"
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    hashed_password = Column(String(255), nullable=False)
+    
+    # Email verification
+    email_verified = Column(Boolean, default=False, nullable=False)
+    email_verification_token = Column(String(255), nullable=True)
+    email_verification_sent_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # MFA
+    mfa_enabled = Column(Boolean, default=False, nullable=False)
+    mfa_secret = Column(String(64), nullable=True)
+    backup_codes = Column(ARRAY(String), nullable=True)  # Hashed backup codes
+    
+    # Password reset
+    password_reset_token = Column(String(255), nullable=True)
+    password_reset_sent_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    user = relationship("UserModel", back_populates="credential")
+
+    def __repr__(self) -> str:
+        return f"<Credential user_id={self.user_id} verified={self.email_verified} mfa={self.mfa_enabled}>"
+```
+
+**Dependências:** `UserModel` (relationship)  
+**Impacto:** Requer migration + modificar `UserModel`  
+**Testes:** `tests/unit/test_credential_model.py` (novo)
+
+---
+
+📄 **`src/robbot/infra/db/models/session_model.py`** (NOVO - 70 linhas)
+```python
+"""Session model - track user sessions."""
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+import uuid
+
+from robbot.infra.db.base import Base
+
+class SessionModel(Base):
+    """User authentication sessions."""
+    __tablename__ = "auth_sessions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Refresh token (hashed SHA256)
+    refresh_token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    
+    # Device fingerprint
+    device_info = Column(String(255), nullable=True)  # User-Agent
+    ip_address = Column(String(45), nullable=True)  # IPv4/IPv6
+    
+    # Session lifecycle
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_used_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    
+    # Relationships
+    user = relationship("UserModel", back_populates="sessions")
+
+    def __repr__(self) -> str:
+        return f"<Session id={self.id} user_id={self.user_id} expires={self.expires_at}>"
+```
+
+**Dependências:** `UserModel` (relationship)  
+**Impacto:** Requer migration + modificar `UserModel`  
+**Testes:** `tests/unit/test_session_model.py` (novo)
+
+---
+
+##### **3. Repositories**
+📄 **`src/robbot/adapters/repositories/credential_repository.py`** (NOVO - 150 linhas)
+```python
+"""Repository for credential management."""
+from typing import Optional
+from sqlalchemy.orm import Session
+
+from robbot.infra.db.models.credential_model import CredentialModel
+
+class CredentialRepository:
+    """CRUD operations for credentials."""
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create(self, user_id: int, hashed_password: str) -> CredentialModel:
+        """Create credential for user."""
+        credential = CredentialModel(
+            user_id=user_id,
+            hashed_password=hashed_password,
+            email_verified=False
+        )
+        self.db.add(credential)
+        self.db.commit()
+        self.db.refresh(credential)
+        return credential
+
+    def get_by_user_id(self, user_id: int) -> Optional[CredentialModel]:
+        """Get credential by user ID."""
+        return self.db.query(CredentialModel).filter(
+            CredentialModel.user_id == user_id
+        ).first()
+
+    def update_password(self, user_id: int, new_hashed_password: str) -> None:
+        """Update password hash."""
+        credential = self.get_by_user_id(user_id)
+        if credential:
+            credential.hashed_password = new_hashed_password
+            self.db.commit()
+
+    def verify_email(self, user_id: int) -> None:
+        """Mark email as verified."""
+        credential = self.get_by_user_id(user_id)
+        if credential:
+            credential.email_verified = True
+            credential.email_verification_token = None
+            self.db.commit()
+
+    def set_mfa(self, user_id: int, secret: str, backup_codes: list[str]) -> None:
+        """Enable MFA."""
+        credential = self.get_by_user_id(user_id)
+        if credential:
+            credential.mfa_enabled = True
+            credential.mfa_secret = secret
+            credential.backup_codes = backup_codes
+            self.db.commit()
+
+    def disable_mfa(self, user_id: int) -> None:
+        """Disable MFA."""
+        credential = self.get_by_user_id(user_id)
+        if credential:
+            credential.mfa_enabled = False
+            credential.mfa_secret = None
+            credential.backup_codes = None
+            self.db.commit()
+```
+
+**Dependências:** `CredentialModel`  
+**Impacto:** 0 (novo, não quebra nada)  
+**Testes:** `tests/unit/test_credential_repository.py` (novo)
+
+---
+
+📄 **`src/robbot/adapters/repositories/session_repository.py`** (NOVO - 180 linhas)
+```python
+"""Repository for session management."""
+from typing import Optional, List
+from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
+import hashlib
+
+from robbot.infra.db.models.session_model import SessionModel
+
+class SessionRepository:
+    """CRUD operations for auth sessions."""
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    @staticmethod
+    def hash_token(token: str) -> str:
+        """Hash refresh token with SHA256."""
+        return hashlib.sha256(token.encode()).hexdigest()
+
+    def create(
+        self,
+        user_id: int,
+        refresh_token: str,
+        device_info: str,
+        ip_address: str,
+        expires_in_days: int = 7
+    ) -> SessionModel:
+        """Create new session."""
+        session = SessionModel(
+            user_id=user_id,
+            refresh_token_hash=self.hash_token(refresh_token),
+            device_info=device_info,
+            ip_address=ip_address,
+            expires_at=datetime.utcnow() + timedelta(days=expires_in_days)
+        )
+        self.db.add(session)
+        self.db.commit()
+        self.db.refresh(session)
+        return session
+
+    def get_by_token(self, refresh_token: str) -> Optional[SessionModel]:
+        """Get session by refresh token."""
+        token_hash = self.hash_token(refresh_token)
+        return self.db.query(SessionModel).filter(
+            SessionModel.refresh_token_hash == token_hash,
+            SessionModel.expires_at > datetime.utcnow()
+        ).first()
+
+    def get_by_user(self, user_id: int) -> List[SessionModel]:
+        """Get all active sessions for user."""
+        return self.db.query(SessionModel).filter(
+            SessionModel.user_id == user_id,
+            SessionModel.expires_at > datetime.utcnow()
+        ).all()
+
+    def update_last_used(self, session_id: str) -> None:
+        """Update last_used_at timestamp."""
+        session = self.db.query(SessionModel).filter(
+            SessionModel.id == session_id
+        ).first()
+        if session:
+            session.last_used_at = datetime.utcnow()
+            self.db.commit()
+
+    def revoke(self, session_id: str) -> None:
+        """Revoke specific session."""
+        self.db.query(SessionModel).filter(
+            SessionModel.id == session_id
+        ).delete()
+        self.db.commit()
+
+    def revoke_all_for_user(self, user_id: int, except_session_id: str = None) -> int:
+        """Revoke all sessions for user (optionally except current)."""
+        query = self.db.query(SessionModel).filter(
+            SessionModel.user_id == user_id
+        )
+        if except_session_id:
+            query = query.filter(SessionModel.id != except_session_id)
+        
+        count = query.delete()
+        self.db.commit()
+        return count
+
+    def cleanup_expired(self) -> int:
+        """Delete expired sessions (cron job)."""
+        count = self.db.query(SessionModel).filter(
+            SessionModel.expires_at <= datetime.utcnow()
+        ).delete()
+        self.db.commit()
+        return count
+```
+
+**Dependências:** `SessionModel`  
+**Impacto:** 0 (novo)  
+**Testes:** `tests/unit/test_session_repository.py` (novo)
+
+---
+
+##### **4. Services**
+📄 **`src/robbot/services/credential_service.py`** (NOVO - 200 linhas)
+```python
+"""Service for credential management (passwords, MFA)."""
+from typing import Optional
+from sqlalchemy.orm import Session
+import pyotp
+import qrcode
+import io
+import base64
+
+from robbot.adapters.repositories.credential_repository import CredentialRepository
+from robbot.adapters.repositories.session_repository import SessionRepository
+from robbot.core import security
+from robbot.core.exceptions import AuthException
+
+class CredentialService:
+    """Business logic for credentials."""
+
+    def __init__(self, db: Session):
+        self.repo = CredentialRepository(db)
+        self.session_repo = SessionRepository(db)
+
+    def create_credential(self, user_id: int, password: str) -> None:
+        """Create credential for new user."""
+        security.validate_password_policy(password)
+        hashed = security.get_password_hash(password)
+        self.repo.create(user_id, hashed)
+
+    def verify_password(self, user_id: int, password: str) -> bool:
+        """Verify password for user."""
+        credential = self.repo.get_by_user_id(user_id)
+        if not credential:
+            return False
+        return security.verify_password(password, credential.hashed_password)
+
+    def change_password(
+        self,
+        user_id: int,
+        old_password: str,
+        new_password: str
+    ) -> None:
+        """Change password (invalidates all sessions)."""
+        # Verify old password
+        if not self.verify_password(user_id, old_password):
+            raise AuthException("Invalid current password")
+        
+        # Validate new password
+        security.validate_password_policy(new_password)
+        
+        # Update password
+        new_hashed = security.get_password_hash(new_password)
+        self.repo.update_password(user_id, new_hashed)
+        
+        # Invalidate all sessions
+        self.session_repo.revoke_all_for_user(user_id)
+
+    def reset_password(self, user_id: int, new_password: str) -> None:
+        """Reset password via token (invalidates all sessions)."""
+        security.validate_password_policy(new_password)
+        new_hashed = security.get_password_hash(new_password)
+        self.repo.update_password(user_id, new_hashed)
+        self.session_repo.revoke_all_for_user(user_id)
+
+    def setup_mfa(self, user_id: int, email: str) -> dict:
+        """Setup MFA and return QR code."""
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        uri = totp.provisioning_uri(name=email, issuer_name="RobBot")
+        
+        # Generate QR code
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(uri)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert to base64
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        qr_base64 = base64.b64encode(buffer.getvalue()).decode()
+        
+        # Generate backup codes
+        backup_codes = [pyotp.random_base32()[:8] for _ in range(10)]
+        
+        return {
+            "secret": secret,
+            "qr_code": qr_base64,
+            "backup_codes": backup_codes
+        }
+
+    def enable_mfa(self, user_id: int, secret: str, code: str, backup_codes: list[str]) -> None:
+        """Enable MFA after verification."""
+        totp = pyotp.TOTP(secret)
+        if not totp.verify(code):
+            raise AuthException("Invalid MFA code")
+        
+        # Hash backup codes before storage
+        hashed_codes = [security.get_password_hash(c) for c in backup_codes]
+        self.repo.set_mfa(user_id, secret, hashed_codes)
+
+    def verify_mfa(self, user_id: int, code: str) -> bool:
+        """Verify MFA code."""
+        credential = self.repo.get_by_user_id(user_id)
+        if not credential or not credential.mfa_enabled:
+            return False
+        
+        # Try TOTP code
+        totp = pyotp.TOTP(credential.mfa_secret)
+        if totp.verify(code):
+            return True
+        
+        # Try backup codes
+        if credential.backup_codes:
+            for hashed_backup in credential.backup_codes:
+                if security.verify_password(code, hashed_backup):
+                    # Remove used backup code
+                    credential.backup_codes.remove(hashed_backup)
+                    return True
+        
+        return False
+
+    def disable_mfa(self, user_id: int, password: str, code: str) -> None:
+        """Disable MFA (requires password + current code)."""
+        if not self.verify_password(user_id, password):
+            raise AuthException("Invalid password")
+        
+        if not self.verify_mfa(user_id, code):
+            raise AuthException("Invalid MFA code")
+        
+        self.repo.disable_mfa(user_id)
+        self.session_repo.revoke_all_for_user(user_id)
+```
+
+**Dependências:** `CredentialRepository`, `SessionRepository`, `security.py`  
+**Impacto:** 0 (novo)  
+**Testes:** `tests/unit/test_credential_service.py` (novo)
+
+---
+
+📄 **`src/robbot/services/session_service.py`** (NOVO - 120 linhas)
+```python
+"""Service for session management."""
+from typing import List
+from sqlalchemy.orm import Session
+from datetime import datetime
+
+from robbot.adapters.repositories.session_repository import SessionRepository
+from robbot.schemas.auth import SessionOut, SessionListResponse
+
+class SessionService:
+    """Business logic for session management."""
+
+    def __init__(self, db: Session):
+        self.repo = SessionRepository(db)
+
+    def create_session(
+        self,
+        user_id: int,
+        refresh_token: str,
+        device_info: str,
+        ip_address: str
+    ) -> str:
+        """Create new session and return session_id."""
+        session = self.repo.create(user_id, refresh_token, device_info, ip_address)
+        return session.id
+
+    def get_user_sessions(self, user_id: int, current_session_id: str) -> SessionListResponse:
+        """Get all active sessions for user."""
+        sessions = self.repo.get_by_user(user_id)
+        session_outs = [
+            SessionOut(
+                id=s.id,
+                device_info=s.device_info or "Unknown",
+                ip_address=s.ip_address or "Unknown",
+                created_at=s.created_at,
+                last_used_at=s.last_used_at,
+                expires_at=s.expires_at,
+                is_current=(s.id == current_session_id)
+            )
+            for s in sessions
+        ]
+        return SessionListResponse(sessions=session_outs, total=len(session_outs))
+
+    def revoke_session(self, user_id: int, session_id: str) -> None:
+        """Revoke specific session (must belong to user)."""
+        session = self.repo.db.query(self.repo.db.query(SessionModel).filter(
+            SessionModel.id == session_id,
+            SessionModel.user_id == user_id
+        ).first())
+        
+        if not session:
+            raise AuthException("Session not found")
+        
+        self.repo.revoke(session_id)
+
+    def revoke_all_except_current(self, user_id: int, current_session_id: str) -> int:
+        """Logout from all devices except current."""
+        return self.repo.revoke_all_for_user(user_id, except_session_id=current_session_id)
+
+    def update_last_used(self, session_id: str) -> None:
+        """Update session last_used timestamp."""
+        self.repo.update_last_used(session_id)
+```
+
+**Dependências:** `SessionRepository`, `schemas/auth.py`  
+**Impacto:** 0 (novo)  
+**Testes:** `tests/unit/test_session_service.py` (novo)
+
+---
+
+##### **5. Decorators (Rate Limiting)**
+📄 **`src/robbot/core/rate_limiting.py`** (NOVO - 100 linhas)
+```python
+"""Rate limiting decorator using Redis."""
+from functools import wraps
+from typing import Callable
+from fastapi import Request, HTTPException, status
+from robbot.infra.cache.redis_client import get_redis_client
+import logging
+
+logger = logging.getLogger(__name__)
+
+def rate_limit(max_attempts: int, window_seconds: int, key_prefix: str):
+    """
+    Rate limiting decorator.
+    
+    Args:
+        max_attempts: Maximum attempts allowed
+        window_seconds: Time window in seconds
+        key_prefix: Redis key prefix (e.g., "login", "refresh")
+    
+    Usage:
+        @rate_limit(max_attempts=5, window_seconds=900, key_prefix="login")
+        async def login_endpoint(...):
+            ...
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Extract request from kwargs
+            request: Request = kwargs.get("request") or args[0]
+            
+            # Build Redis key (IP-based by default)
+            client_ip = request.client.host if request.client else "unknown"
+            redis_key = f"rate_limit:{key_prefix}:{client_ip}"
+            
+            redis = get_redis_client()
+            
+            try:
+                # Get current count
+                current = redis.get(redis_key)
+                count = int(current) if current else 0
+                
+                if count >= max_attempts:
+                    retry_after = redis.ttl(redis_key)
+                    logger.warning(
+                        f"Rate limit exceeded for {key_prefix} from {client_ip}: "
+                        f"{count}/{max_attempts} in {window_seconds}s"
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail=f"Too many requests. Try again in {retry_after}s.",
+                        headers={"Retry-After": str(retry_after)}
+                    )
+                
+                # Increment counter
+                pipe = redis.pipeline()
+                pipe.incr(redis_key)
+                if count == 0:
+                    pipe.expire(redis_key, window_seconds)
+                pipe.execute()
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                # Degradation graceful: if Redis fails, allow request
+                logger.error(f"Rate limiting error: {e}")
+            
+            # Call original function
+            return await func(*args, **kwargs)
+        
+        return wrapper
+    return decorator
+```
+
+**Dependências:** `redis_client.py` (já existe)  
+**Impacto:** 0 (novo)  
+**Testes:** `tests/unit/test_rate_limiting.py` (novo)
+
+---
+
+#### 📦 Dependências Python Novas
+
+**Arquivo:** `pyproject.toml` ou comando `uv add`
+
+```bash
+uv add pyotp        # TOTP para MFA
+uv add qrcode       # QR codes para MFA setup
+uv add pillow       # Imagens (QR code)
+```
+
+---
+
+### 📁 FASE 1: REFATORAÇÃO AUTH (4 semanas) - Arquivos Modificados
+
+#### 🔧 Arquivos a MODIFICAR (15 arquivos)
+
+##### **1. Models (Database)**
+📄 **`src/robbot/infra/db/models/user_model.py`** 
+**Ação:** REMOVER `hashed_password` + adicionar relationships
+
+```python
+# ANTES (linhas 17-18):
+hashed_password = Column(String(255), nullable=False)
+
+# DEPOIS:
+# REMOVER hashed_password
+# ADICIONAR:
+credential = relationship("CredentialModel", back_populates="user", uselist=False, cascade="all, delete-orphan")
+sessions = relationship("SessionModel", back_populates="user", cascade="all, delete-orphan")
+```
+
+**Impacto:** ALTO - Requer migration de dados  
+**Testes:** Atualizar `tests/unit/test_user_model.py`
+
+---
+
+📄 **`src/robbot/infra/db/models/__init__.py`**
+**Ação:** Adicionar novos models aos imports
+
+```python
+# ADICIONAR:
+from robbot.infra.db.models.credential_model import CredentialModel
+from robbot.infra.db.models.session_model import SessionModel
+
+# E no __all__:
+__all__ = [
+    ...
+    "CredentialModel",
+    "SessionModel",
+]
+```
+
+**Impacto:** BAIXO  
+**Testes:** Nenhum
+
+---
+
+##### **2. Schemas**
+📄 **`src/robbot/schemas/user.py`**
+**Ação:** REMOVER `password` de `UserCreate`, REMOVER `is_active` de `UserUpdate`, REMOVER `UserInDB`
+
+```python
+# ANTES:
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)  # ❌ REMOVER
+    full_name: str | None = None
+    role: str = "user"
+
+class UserUpdate(BaseModel):
+    full_name: str | None = None
+    is_active: bool | None = None  # ❌ REMOVER
+
+class UserInDB(UserOut):  # ❌ REMOVER CLASSE INTEIRA
+    hashed_password: str
+
+# DEPOIS:
+class UserCreate(BaseModel):
+    """Data for creating user (NO password - that's Auth)."""
+    email: EmailStr
+    full_name: str | None = None
+    role: str = "user"
+
+class UserUpdate(BaseModel):
+    """Update profile data only (NO security fields)."""
+    full_name: str | None = None
+    # is_active removed - that's Auth concern
+
+# UserInDB deleted
+```
+
+**Impacto:** ALTO - Quebra compatibilidade  
+**Testes:** Atualizar todos os testes que usam `UserCreate` com `password`
+
+---
+
+##### **3. Services**
+📄 **`src/robbot/services/auth_services.py`**
+**Ação:** REFATORAR completamente para usar `CredentialService` e `SessionService`
+
+```python
+# ANTES (método signup - linhas 28-38):
+def signup(self, payload: UserCreate) -> UserOut:
+    existing = self.repo.get_by_email(payload.email)
+    if existing:
+        raise AuthException("User already exists")
+    security.validate_password_policy(payload.password)  # ❌
+    hashed = security.get_password_hash(payload.password)  # ❌
+    user = self.repo.create_user(payload, hashed_password=hashed)  # ❌
+    return UserOut.model_validate(user)
+
+# DEPOIS:
+def signup(self, signup_request: SignupRequest) -> UserOut:
+    """Register new user (creates User + Credential)."""
+    from robbot.services.user_service import UserService
+    from robbot.services.credential_service import CredentialService
+    
+    # Check existing
+    existing = self.user_repo.get_by_email(signup_request.email)
+    if existing:
+        raise AuthException("User already exists")
+    
+    # Create User (domain)
+    user_service = UserService(self.db)
+    user = user_service.create_user(
+        email=signup_request.email,
+        full_name=signup_request.full_name
+    )
+    
+    # Create Credential (security)
+    credential_service = CredentialService(self.db)
+    credential_service.create_credential(user.id, signup_request.password)
+    
+    return UserOut.model_validate(user)
+```
+
+**ADICIONAR métodos:**
+- `verify_email(token: str)`
+- `resend_verification_email(email: str)`
+- `setup_mfa(user_id: int)` 
+- `verify_mfa(user_id: int, code: str)`
+- `disable_mfa(user_id: int, password: str, code: str)`
+
+**MODIFICAR métodos:**
+- `authenticate_user()`: adicionar verificação de MFA
+- `refresh()`: implementar token rotation
+- `reset_password()`: chamar `credential_service.reset_password()` + revogar sessões
+
+**Impacto:** MUITO ALTO - Core do Auth  
+**Testes:** Reescrever `tests/unit/test_auth_service.py`
+
+---
+
+📄 **`src/robbot/services/user_service.py`**
+**Ação:** REMOVER lógica de `is_active`, ADICIONAR método `create_user` puro
+
+```python
+# ADICIONAR:
+def create_user(self, email: str, full_name: str | None = None, role: str = "user") -> UserOut:
+    """Create user (NO password - Auth handles that)."""
+    user_model = UserModel(
+        email=email,
+        full_name=full_name,
+        role=role,
+        is_active=True  # Default ativo, Auth bloqueará se necessário
+    )
+    self.repo.db.add(user_model)
+    self.repo.db.commit()
+    self.repo.db.refresh(user_model)
+    return UserOut.model_validate(user_model)
+
+# MODIFICAR update_user:
+def update_user(self, user_id: int, payload: UserUpdate) -> UserOut:
+    user = self.repo.get_by_id(user_id)
+    if not user:
+        raise NotFoundException(f"User {user_id} not found")
+    
+    # Apenas full_name agora (is_active removido)
+    if payload.full_name is not None:
+        user.full_name = payload.full_name
+    
+    updated = self.repo.update_user(user)
+    return UserOut.model_validate(updated)
+
+# deactivate_user DELETAR (será POST /auth/users/{id}/block)
+```
+
+**Impacto:** MÉDIO  
+**Testes:** Atualizar `tests/unit/test_user_service.py`
+
+---
+
+##### **4. Repositories**
+📄 **`src/robbot/adapters/repositories/user_repository.py`**
+**Ação:** REMOVER parâmetro `hashed_password` de `create_user`
+
+```python
+# ANTES:
+def create_user(self, user_in: UserCreate, hashed_password: str) -> UserModel:
+    user = UserModel(
+        email=user_in.email,
+        hashed_password=hashed_password,  # ❌ REMOVER
+        full_name=user_in.full_name,
+        role=user_in.role,
+    )
+    ...
+
+# DEPOIS:
+def create_user(self, email: str, full_name: str | None, role: str) -> UserModel:
+    """Create user (NO password)."""
+    user = UserModel(
+        email=email,
+        full_name=full_name,
+        role=role,
+        is_active=True
+    )
+    self.db.add(user)
+    self.db.commit()
+    self.db.refresh(user)
+    return user
+```
+
+**Impacto:** MÉDIO  
+**Testes:** Atualizar `tests/unit/test_user_repository.py`
+
+---
+
+📄 **`src/robbot/adapters/repositories/token_repository.py`**
+**Ação:** ADICIONAR método `revoke_all_for_user`
+
+```python
+# ADICIONAR:
+def revoke_all_for_user(self, user_id: int) -> int:
+    """Revoke all tokens for user (password reset/change)."""
+    # Como tokens são JWT stateless, precisamos marcar user_id como "force logout"
+    # OU armazenar metadata em RevokedTokenModel
+    # Implementação simplificada: revogar por timestamp
+    token_marker = f"user:{user_id}:invalidated_at:{datetime.utcnow().isoformat()}"
+    self.revoke(token_marker)
+    return 1
+```
+
+**Impacto:** MÉDIO  
+**Testes:** Adicionar teste em `tests/unit/test_token_repository.py`
+
+---
+
+##### **5. Controllers**
+📄 **`src/robbot/adapters/controllers/auth_controller.py`**
+**Ação:** REFATORAR todos os endpoints para usar novos schemas
+
+```python
+# MODIFICAR imports:
+from robbot.schemas.auth import (
+    SignupRequest, LoginRequest, AuthSessionResponse,
+    ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest,
+    VerifyEmailRequest, ResendEmailRequest,
+    MfaSetupResponse, MfaVerifyRequest, MfaDisableRequest,
+    SessionListResponse, BackupCodesResponse
+)
+from robbot.schemas.user import UserOut  # Apenas para signup response
+
+# MODIFICAR endpoints:
+@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+def register(payload: SignupRequest, db: Session = Depends(get_db)):  # Era signup
+    ...
+
+@router.get("/me", response_model=AuthSessionResponse)  # Era UserOut
+def get_current_session(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    # Retornar dados de SESSÃO, não perfil
+    ...
+
+@router.post("/password/change", status_code=status.HTTP_200_OK)
+def change_password(
+    payload: ChangePasswordRequest,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Novo endpoint
+    ...
+
+# ADICIONAR endpoints:
+@router.post("/email/verify")
+@router.post("/email/resend")
+@router.get("/sessions", response_model=SessionListResponse)
+@router.post("/sessions/{session_id}/revoke")
+@router.post("/sessions/revoke-all")
+@router.post("/mfa/setup", response_model=MfaSetupResponse)
+@router.post("/mfa/verify")
+@router.post("/mfa/disable")
+@router.get("/mfa/backup-codes", response_model=BackupCodesResponse)
+@router.post("/users/{user_id}/block")  # Admin only
+@router.post("/users/{user_id}/unblock")  # Admin only
+
+# ADICIONAR rate limiting:
+from robbot.core.rate_limiting import rate_limit
+
+@router.post("/token", response_model=Token)
+@rate_limit(max_attempts=5, window_seconds=900, key_prefix="login")
+async def login(...):
+    ...
+```
+
+**Impacto:** MUITO ALTO - API pública muda  
+**Testes:** Criar `tests/integration/test_auth_endpoints.py` completo
+
+---
+
+📄 **`src/robbot/adapters/controllers/user_controller.py`**
+**Ação:** ADICIONAR `GET /users/me` (perfil), REMOVER endpoint de deactivate
+
+```python
+# ADICIONAR:
+@router.get("/users/me", response_model=UserOut)
+def get_my_profile(current_user=Depends(get_current_user)):
+    """Get my user profile (NOT auth session)."""
+    return current_user
+
+@router.patch("/users/me", response_model=UserOut)
+def update_my_profile(
+    payload: UserUpdate,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update my profile."""
+    service = UserService(db)
+    return service.update_user(current_user.id, payload)
+
+# REMOVER ou MODIFICAR:
+@router.delete("/users/{user_id}", ...)  # Deletar - bloqueio é Auth
+```
+
+**Impacto:** MÉDIO  
+**Testes:** Criar `tests/integration/test_user_endpoints.py`
+
+---
+
+##### **6. Core**
+📄 **`src/robbot/core/security.py`**
+**Ação:** ADICIONAR suporte a MFA verification no `get_current_user`
+
+```python
+# MODIFICAR get_current_user para verificar MFA se necessário
+# ADICIONAR helper para TOTP verification
+```
+
+**Impacto:** BAIXO  
+**Testes:** Atualizar `tests/unit/test_security.py`
+
+---
+
+##### **7. Dependencies**
+📄 **`src/robbot/api/v1/dependencies.py`**
+**Ação:** MODIFICAR `get_current_user` para verificar sessões e MFA
+
+```python
+# ANTES:
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    # Apenas valida JWT
+    ...
+
+# DEPOIS:
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+    request: Request = None  # Para device fingerprint
+):
+    """Validate JWT + check session + MFA."""
+    payload = security.decode_token(token)
+    user_id = int(payload.get("sub"))
+    
+    # Verificar se user está bloqueado
+    user = user_repo.get_by_id(user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User inactive")
+    
+    # Verificar email verificado
+    credential = credential_repo.get_by_user_id(user_id)
+    if not credential.email_verified:
+        raise HTTPException(status_code=403, detail="Email not verified")
+    
+    # TODO: Verificar sessão válida (fase 3)
+    
+    return user
+```
+
+**Impacto:** ALTO - Afeta TODOS os endpoints autenticados  
+**Testes:** Atualizar `tests/unit/test_dependencies.py`
+
+---
+
+### 📁 MIGRATIONS (5 novas)
+
+#### 🗄️ Alembic Migrations
+
+##### **Migration 1: Create credentials table**
+📄 **`alembic/versions/XXXXXXXX_create_credentials_table.py`**
+
+```python
+"""Create credentials table and migrate data from users.
+
+Revision ID: XXXXXXXX
+Revises: 007ad6343e57
+Create Date: 2025-12-22 10:00:00
+"""
+
+def upgrade():
+    # 1. Criar tabela credentials
+    op.create_table(
+        'credentials',
+        sa.Column('user_id', sa.Integer(), nullable=False),
+        sa.Column('hashed_password', sa.String(255), nullable=False),
+        sa.Column('email_verified', sa.Boolean(), nullable=False, server_default='false'),
+        sa.Column('email_verification_token', sa.String(255), nullable=True),
+        sa.Column('email_verification_sent_at', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('mfa_enabled', sa.Boolean(), nullable=False, server_default='false'),
+        sa.Column('mfa_secret', sa.String(64), nullable=True),
+        sa.Column('backup_codes', ARRAY(sa.String()), nullable=True),
+        sa.Column('password_reset_token', sa.String(255), nullable=True),
+        sa.Column('password_reset_sent_at', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.PrimaryKeyConstraint('user_id'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE')
+    )
+    
+    # 2. MIGRAR dados: copiar hashed_password de users para credentials
+    op.execute("""
+        INSERT INTO credentials (user_id, hashed_password, email_verified, created_at)
+        SELECT id, hashed_password, true, created_at
+        FROM users
+    """)
+    
+    # 3. Remover coluna hashed_password de users
+    op.drop_column('users', 'hashed_password')
+
+def downgrade():
+    # 1. Readicionar coluna
+    op.add_column('users', sa.Column('hashed_password', sa.String(255)))
+    
+    # 2. Migrar de volta
+    op.execute("""
+        UPDATE users
+        SET hashed_password = c.hashed_password
+        FROM credentials c
+        WHERE users.id = c.user_id
+    """)
+    
+    # 3. Tornar NOT NULL
+    op.alter_column('users', 'hashed_password', nullable=False)
+    
+    # 4. Dropar tabela credentials
+    op.drop_table('credentials')
+```
+
+**Impacto:** CRÍTICO - Modifica estrutura core  
+**Rollback:** Suportado (downgrade)  
+**Testes:** Testar em DB staging antes de prod
+
+---
+
+##### **Migration 2: Create auth_sessions table**
+📄 **`alembic/versions/YYYYYYYY_create_auth_sessions_table.py`**
+
+```python
+"""Create auth_sessions table for session management.
+
+Revision ID: YYYYYYYY
+Revises: XXXXXXXX
+Create Date: 2025-12-22 11:00:00
+"""
+
+def upgrade():
+    op.create_table(
+        'auth_sessions',
+        sa.Column('id', sa.String(36), nullable=False),
+        sa.Column('user_id', sa.Integer(), nullable=False),
+        sa.Column('refresh_token_hash', sa.String(64), nullable=False),
+        sa.Column('device_info', sa.String(255), nullable=True),
+        sa.Column('ip_address', sa.String(45), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column('last_used_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+        sa.PrimaryKeyConstraint('id'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE')
+    )
+    
+    # Índices para performance
+    op.create_index('ix_auth_sessions_user_id', 'auth_sessions', ['user_id'])
+    op.create_index('ix_auth_sessions_refresh_token_hash', 'auth_sessions', ['refresh_token_hash'], unique=True)
+    op.create_index('ix_auth_sessions_expires_at', 'auth_sessions', ['expires_at'])
+
+def downgrade():
+    op.drop_table('auth_sessions')
+```
+
+**Impacto:** MÉDIO - Tabela nova  
+**Rollback:** Simples  
+**Testes:** Unit tests de SessionRepository
+
+---
+
+##### **Migration 3-5:** (Simplificadas, incluídas nas docs completas)
+
+---
+
+### 🧪 TESTES (20 arquivos afetados)
+
+#### Testes NOVOS a criar (12 arquivos):
+
+1. `tests/unit/test_auth_schemas.py` - Validação de SignupRequest, etc.
+2. `tests/unit/test_credential_model.py` - Model CredentialModel
+3. `tests/unit/test_session_model.py` - Model SessionModel
+4. `tests/unit/test_credential_repository.py` - CRUD credentials
+5. `tests/unit/test_session_repository.py` - CRUD sessions
+6. `tests/unit/test_credential_service.py` - Lógica de senha/MFA
+7. `tests/unit/test_session_service.py` - Lógica de sessões
+8. `tests/unit/test_rate_limiting.py` - Rate limiter decorator
+9. `tests/integration/test_auth_endpoints.py` - Todos endpoints /auth/*
+10. `tests/integration/test_user_endpoints.py` - Endpoints /users/*
+11. `tests/integration/test_mfa_flow.py` - Fluxo completo MFA
+12. `tests/integration/test_email_verification_flow.py` - Verificação email
+
+#### Testes MODIFICADOS (8 arquivos):
+
+1. `tests/unit/test_auth_service.py` - Adaptar para novos métodos
+2. `tests/unit/test_user_service.py` - Remover testes de password
+3. `tests/unit/test_user_repository.py` - create_user sem password
+4. `tests/unit/test_user_model.py` - Sem hashed_password
+5. `tests/unit/test_token_repository.py` - revoke_all_for_user
+6. `tests/unit/test_security.py` - MFA helpers
+7. `tests/unit/test_dependencies.py` - get_current_user changes
+8. `tests/conftest.py` - Fixtures de credential/session
+
+---
+
+### 📊 ESTATÍSTICAS FINAIS DE IMPACTO
+
+| Categoria | Novos | Modificados | Deletados | Total |
+|-----------|-------|-------------|-----------|-------|
+| **Schemas** | 2 | 1 | 0 | 3 |
+| **Models** | 2 | 2 | 0 | 4 |
+| **Repositories** | 2 | 2 | 0 | 4 |
+| **Services** | 2 | 2 | 0 | 4 |
+| **Controllers** | 0 | 2 | 0 | 2 |
+| **Core/Utils** | 1 | 2 | 0 | 3 |
+| **Dependencies** | 0 | 1 | 0 | 1 |
+| **Migrations** | 5 | 0 | 0 | 5 |
+| **Tests (Unit)** | 8 | 8 | 0 | 16 |
+| **Tests (Integration)** | 4 | 0 | 0 | 4 |
+| **Total Arquivos** | **26** | **20** | **0** | **46** |
+
+---
+
+### 🎯 ORDEM DE EXECUÇÃO RECOMENDADA (Sem Quebrar Nada)
+
+#### **Semana 1-2: Fase 0 (Preparação)**
+
+1. Criar `schemas/auth.py` ✅
+2. Criar `CredentialModel` ✅
+3. Criar `SessionModel` ✅
+4. Criar `CredentialRepository` ✅
+5. Criar `SessionRepository` ✅
+6. Criar `CredentialService` ✅
+7. Criar `SessionService` ✅
+8. Criar `core/rate_limiting.py` ✅
+9. Criar testes unitários de novos componentes ✅
+10. Instalar dependências: `uv add pyotp qrcode pillow` ✅
+
+**Status após Semana 2:** Código novo coexiste, nada quebra ainda
+
+---
+
+#### **Semana 3-4: Fase 1.1 (Migration Credentials)**
+
+11. Criar migration para `credentials` table ✅
+12. Rodar migration em staging ✅
+13. Validar migração de dados ✅
+14. Modificar `UserModel` (remover hashed_password) ✅
+15. Modificar `UserRepository.create_user` ✅
+16. Atualizar testes de UserModel/Repository ✅
+
+**Status após Semana 4:** Credenciais separadas, UserModel limpo
+
+---
+
+#### **Semana 5-6: Fase 1.2 (Refatorar AuthService)**
+
+17. Modificar `schemas/user.py` (remover password) ✅
+18. Modificar `AuthService.signup` para usar CredentialService ✅
+19. Modificar `AuthService.authenticate` para usar CredentialService ✅
+20. Implementar refresh token rotation ✅
+21. Modificar `reset_password` para invalidar sessões ✅
+22. Atualizar `test_auth_service.py` ✅
+23. Criar migration para `auth_sessions` ✅
+24. Integrar SessionService em AuthService ✅
+
+**Status após Semana 6:** Auth usa Credential/Session, rotation implementada
+
+---
+
+#### **Semana 7-8: Fase 1.3 (Endpoints + Rate Limiting)**
+
+25. Modificar `auth_controller.py` (novos endpoints) ✅
+26. Adicionar rate limiting em login/refresh/recovery ✅
+27. Criar `GET /auth/me` retornando AuthSessionResponse ✅
+28. Modificar `user_controller.py` (adicionar /users/me) ✅
+29. Criar endpoints de sessões (/auth/sessions/*) ✅
+30. Criar endpoints de MFA (/auth/mfa/*) ✅
+31. Criar endpoints admin (/auth/users/{id}/block) ✅
+32. Criar testes de integração completos ✅
+33. Atualizar documentação OpenAPI ✅
+
+**Status após Semana 8:** API pública refatorada, P0 completo
+
+---
+
+### 🚨 RISCOS E MITIGAÇÕES
+
+| Risco | Severidade | Mitigação |
+|-------|------------|-----------|
+| Migration falha em produção | ALTA | Testar em staging, backup antes, rollback script |
+| API breaking changes quebram clients | ALTA | Versionar API (v2), deprecation warnings |
+| Performance degradada (joins) | MÉDIA | Índices em FKs, eager loading, cache |
+| Dados perdidos na migration | CRÍTICA | Backup completo, dry-run, validação pós-migration |
+| Redis down quebra rate limit | MÉDIA | Degradação graceful (permitir se Redis falhar) |
+| MFA lockout de usuários | MÉDIA | Backup codes obrigatórios, admin unlock |
+
+---
+
+### ✅ CHECKLIST DE VALIDAÇÃO (Antes de Produção)
+
+#### **Funcional:**
+- [ ] Signup cria User + Credential separadamente
+- [ ] Login com MFA funciona
+- [ ] Refresh rotation: token usado é revogado
+- [ ] Reset senha invalida TODAS as sessões
+- [ ] Rate limiting bloqueia após limite
+- [ ] Email verification obrigatória
+- [ ] Sessões listadas e revogáveis
+- [ ] Bloqueio de user invalida sessões
+
+#### **Testes:**
+- [ ] 100% cobertura de CredentialService
+- [ ] 100% cobertura de SessionService
+- [ ] Integration tests de todos endpoints Auth
+- [ ] Load test de rate limiting (Redis)
+- [ ] Migration testada em staging
+
+#### **Segurança:**
+- [ ] Passwords nunca em logs
+- [ ] MFA codes expiram após 30s
+- [ ] Backup codes hasheados
+- [ ] Sessions invalidadas em logout
+- [ ] Tokens rotacionados corretamente
+
+#### **Performance:**
+- [ ] Queries < 50ms (p95)
+- [ ] Índices criados em FKs
+- [ ] Eager loading em relationships
+- [ ] Redis connection pool configurado
+
+---
+
+### 📚 RECURSOS ADICIONAIS
+
+**Documentação a criar:**
+- `docs/API_MIGRATION_GUIDE.md` - Como migrar de v1 para v2
+- `docs/MFA_SETUP_GUIDE.md` - Guia para usuários
+- `docs/ADMIN_GUIDE.md` - Bloqueio/desbloqueio de users
+- `docs/SECURITY_AUDIT.md` - Checklist de segurança
+
+**Scripts úteis:**
+- `scripts/migrate_credentials.py` - Helper para migration
+- `scripts/cleanup_expired_sessions.py` - Cron job
+- `scripts/generate_backup_codes.py` - Admin tool
+
+---
+
+**FIM DO MAPA DE IMPACTO**
+
+---
+
+## 🎯 GUIA PRÁTICO: COMO COMEÇAR A REFATORAÇÃO
+
+### 🚀 Passo 1: Clonar o Projeto e Criar Branch
+
+```bash
+cd d:/_projects/wpp_bot
+git checkout -b refactor/auth-user-separation
+git pull origin main
+```
+
+### 📦 Passo 2: Instalar Dependências Novas
+
+```bash
+# Ativar ambiente virtual
+.venv\Scripts\activate
+
+# Instalar libs de MFA
+uv add pyotp qrcode pillow
+uv sync
+```
+
+### 📝 Passo 3: Criar Arquivos Novos (Fase 0 - Dia 1)
+
+**Criar estrutura de pastas:**
+```bash
+# Criar arquivos base
+touch src/robbot/schemas/auth.py
+touch src/robbot/infra/db/models/credential_model.py
+touch src/robbot/infra/db/models/session_model.py
+touch src/robbot/adapters/repositories/credential_repository.py
+touch src/robbot/adapters/repositories/session_repository.py
+touch src/robbot/services/credential_service.py
+touch src/robbot/services/session_service.py
+touch src/robbot/core/rate_limiting.py
+```
+
+**Copiar código das seções acima para cada arquivo**  
+(Use a documentação de "FASE 0: PREPARAÇÃO" como referência)
+
+### 🧪 Passo 4: Criar Testes para Arquivos Novos (Fase 0 - Dia 2-3)
+
+```bash
+# Criar estrutura de testes
+touch tests/unit/test_auth_schemas.py
+touch tests/unit/test_credential_model.py
+touch tests/unit/test_session_model.py
+touch tests/unit/test_credential_repository.py
+touch tests/unit/test_session_repository.py
+touch tests/unit/test_credential_service.py
+touch tests/unit/test_session_service.py
+touch tests/unit/test_rate_limiting.py
+```
+
+**Rodar testes:**
+```bash
+pytest tests/unit/test_credential_service.py -v
+pytest tests/unit/ -v --cov=src/robbot/services/credential_service
+```
+
+### 🗄️ Passo 5: Criar Migration para Credentials (Fase 0 - Dia 4-5)
+
+```bash
+# Gerar migration
+alembic revision -m "create_credentials_table"
+
+# Editar arquivo gerado em alembic/versions/XXXX_create_credentials_table.py
+# Copiar código da seção "Migration 1: Create credentials table"
+
+# Testar em staging
+alembic upgrade head
+
+# Validar dados migrados
+python -c "
+from robbot.infra.db.session import SessionLocal
+from robbot.infra.db.models.credential_model import CredentialModel
+
+db = SessionLocal()
+count = db.query(CredentialModel).count()
+print(f'✅ {count} credentials migradas com sucesso')
+"
+```
+
+### 🔄 Passo 6: Refatorar AuthService (Fase 1 - Semana 3-4)
+
+**Ordem de modificação:**
+1. ✅ Modificar `schemas/user.py` (remover password)
+2. ✅ Modificar `UserRepository.create_user` (sem hashed_password)
+3. ✅ Modificar `AuthService.signup` (usar CredentialService)
+4. ✅ Rodar testes: `pytest tests/unit/test_auth_service.py -v`
+5. ✅ Se testes passam, commit: `git commit -m "refactor: AuthService usa CredentialService"`
+
+### 📡 Passo 7: Atualizar Controllers (Fase 1 - Semana 5-6)
+
+```bash
+# Modificar auth_controller.py
+# Adicionar novos endpoints
+# Adicionar rate limiting
+
+# Testar endpoints
+pytest tests/integration/test_auth_endpoints.py -v
+
+# Testar manualmente com Postman
+# POST http://localhost:8000/api/v1/auth/register
+# POST http://localhost:8000/api/v1/auth/login
+# POST http://localhost:8000/api/v1/auth/mfa/setup
+```
+
+### ✅ Passo 8: Validar Tudo Funciona (Fase 1 - Semana 7-8)
+
+**Checklist:**
+```bash
+# 1. Todos os testes passam
+pytest tests/ -v --cov=src/robbot --cov-report=html
+
+# 2. Migrations aplicadas
+alembic current
+# Deve mostrar: YYYYYYYY (head)
+
+# 3. Servidor roda sem erros
+uvicorn robbot.main:app --reload
+
+# 4. OpenAPI atualizada
+# Abrir http://localhost:8000/docs
+# Verificar novos endpoints /auth/*
+
+# 5. Integração funciona
+# Fazer signup -> login -> mfa setup -> mfa verify
+```
+
+### 🚢 Passo 9: Deploy Staging
+
+```bash
+# Merge para main
+git checkout main
+git merge refactor/auth-user-separation
+
+# Push
+git push origin main
+
+# Deploy staging
+# (Docker compose up, etc.)
+
+# Validar em staging
+curl -X POST https://staging.api.com/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"Test@1234"}'
+```
+
+### 📊 Passo 10: Monitorar Métricas
+
+**Após deploy, monitorar:**
+- Taxa de sucesso de login (deve permanecer 100%)
+- Tempo de resposta de /auth/login (deve ser < 200ms)
+- Taxa de erro 401 (não deve aumentar)
+- Logs de rate limiting (verificar bloqueios falsos positivos)
+
+---
+
+## 📋 CRONOGRAMA DETALHADO (8 Semanas para MVP Seguro)
+
+### Semana 1 (22-26 Dez 2025)
+- [ ] **Dia 1:** Criar schemas/auth.py + tests
+- [ ] **Dia 2:** Criar CredentialModel + SessionModel
+- [ ] **Dia 3:** Criar CredentialRepository + SessionRepository
+- [ ] **Dia 4:** Criar CredentialService + SessionService
+- [ ] **Dia 5:** Criar rate_limiting.py + tests
+- [ ] **Entrega:** Todos os arquivos novos + testes unitários passando
+
+### Semana 2 (29 Dez - 2 Jan 2026)
+- [ ] **Dia 1:** Migration credentials table (staging)
+- [ ] **Dia 2:** Validar migração + rollback test
+- [ ] **Dia 3:** Migration auth_sessions table
+- [ ] **Dia 4:** Atualizar UserModel (__init__.py, relationships)
+- [ ] **Dia 5:** Rodar testes completos + code review
+- [ ] **Entrega:** DB staging com novas tabelas populadas
+
+### Semana 3 (5-9 Jan 2026)
+- [ ] **Dia 1:** Modificar schemas/user.py (remover password)
+- [ ] **Dia 2:** Modificar UserRepository.create_user
+- [ ] **Dia 3:** Modificar AuthService.signup
+- [ ] **Dia 4:** Modificar AuthService.authenticate
+- [ ] **Dia 5:** Atualizar test_auth_service.py + tests passando
+- [ ] **Entrega:** AuthService refatorado, testes 100% passando
+
+### Semana 4 (12-16 Jan 2026)
+- [ ] **Dia 1:** Implementar refresh token rotation
+- [ ] **Dia 2:** Modificar reset_password (invalidar sessões)
+- [ ] **Dia 3:** Integrar SessionService em AuthService
+- [ ] **Dia 4:** Criar testes de rotation
+- [ ] **Dia 5:** Code review + ajustes
+- [ ] **Entrega:** Rotation + invalidação de sessões funcionando
+
+### Semana 5 (19-23 Jan 2026)
+- [ ] **Dia 1:** Modificar auth_controller (novos schemas)
+- [ ] **Dia 2:** Criar endpoints /auth/password/change
+- [ ] **Dia 3:** Criar endpoints /auth/email/verify|resend
+- [ ] **Dia 4:** Adicionar rate limiting em login/refresh
+- [ ] **Dia 5:** Criar GET /auth/me (AuthSessionResponse)
+- [ ] **Entrega:** Endpoints Auth refatorados
+
+### Semana 6 (26-30 Jan 2026)
+- [ ] **Dia 1:** Criar endpoints /auth/sessions/*
+- [ ] **Dia 2:** Criar endpoints /auth/mfa/setup|verify|disable
+- [ ] **Dia 3:** Criar endpoints /auth/users/{id}/block|unblock
+- [ ] **Dia 4:** Modificar user_controller (GET /users/me)
+- [ ] **Dia 5:** Atualizar OpenAPI docs
+- [ ] **Entrega:** Todos endpoints novos implementados
+
+### Semana 7 (2-6 Fev 2026)
+- [ ] **Dia 1:** Criar tests/integration/test_auth_endpoints.py
+- [ ] **Dia 2:** Criar tests/integration/test_mfa_flow.py
+- [ ] **Dia 3:** Criar tests/integration/test_email_verification.py
+- [ ] **Dia 4:** Rodar suite completa de testes
+- [ ] **Dia 5:** Cobertura > 90% + ajustes
+- [ ] **Entrega:** Testes de integração completos
+
+### Semana 8 (9-13 Fev 2026)
+- [ ] **Dia 1:** Deploy staging + smoke tests
+- [ ] **Dia 2:** Load testing (rate limiting, sessions)
+- [ ] **Dia 3:** Security audit (OWASP checklist)
+- [ ] **Dia 4:** Documentação final (migration guide)
+- [ ] **Dia 5:** Deploy produção + monitoramento
+- [ ] **Entrega:** 🚀 MVP SEGURO EM PRODUÇÃO
+
+---
+
+## 💡 DICAS PRÁTICAS
+
+### ✅ DO's (Faça)
+
+1. **Commitar frequentemente:** A cada arquivo novo ou modificação, commit
+   ```bash
+   git add src/robbot/schemas/auth.py
+   git commit -m "feat: add auth schemas (SignupRequest, LoginRequest)"
+   ```
+
+2. **Testar antes de modificar:** Sempre rode testes ANTES de refatorar
+   ```bash
+   pytest tests/unit/test_auth_service.py -v  # Deve passar antes
+   # ... modificar código ...
+   pytest tests/unit/test_auth_service.py -v  # Deve passar depois
+   ```
+
+3. **Usar branches por feature:**
+   ```bash
+   git checkout -b feat/credential-service
+   # ... implementar ...
+   git push origin feat/credential-service
+   # Criar PR para code review
+   ```
+
+4. **Validar migrations em staging SEMPRE:**
+   ```bash
+   # Staging primeiro
+   alembic upgrade head
+   python scripts/validate_migration.py
+   
+   # Só depois em produção
+   alembic upgrade head
+   ```
+
+5. **Documentar mudanças breaking:**
+   ```markdown
+   ## BREAKING CHANGES v2.0.0
+   
+   - POST /auth/signup agora é POST /auth/register
+   - GET /auth/me retorna AuthSessionResponse (não UserOut)
+   - UserCreate não aceita mais campo password
+   ```
+
+### ❌ DON'Ts (Não Faça)
+
+1. **Não modifique múltiplos arquivos de uma vez**
+   - ❌ Modificar AuthService + UserService + Controllers tudo junto
+   - ✅ Modificar um por vez, testar, commit, próximo
+
+2. **Não pule testes:**
+   - ❌ "Vou testar depois"
+   - ✅ TDD: Escreva teste primeiro, depois implementação
+
+3. **Não aplique migrations em prod sem staging:**
+   - ❌ `alembic upgrade head` direto em produção
+   - ✅ Testar em staging, backup, dry-run, só depois prod
+
+4. **Não remova código antigo antes do novo funcionar:**
+   - ❌ Deletar `UserCreate.password` e quebrar tudo
+   - ✅ Criar `SignupRequest` novo, migrar endpoints, depois deprecar antigo
+
+5. **Não ignore warnings de deprecação:**
+   ```python
+   # ✅ BOM: Deprecation warnings
+   import warnings
+   
+   @deprecated("Use SignupRequest instead")
+   class UserCreate:
+       password: str  # Deprecated, use /auth/register
+   ```
+
+---
+
+## 🆘 TROUBLESHOOTING COMUM
+
+### Problema 1: Migration falha com FK constraint
+
+**Erro:**
+```
+sqlalchemy.exc.IntegrityError: foreign key constraint fails
+```
+
+**Solução:**
+```python
+# Migration deve seguir ordem:
+# 1. Criar tabela credentials SEM FK
+op.create_table('credentials', ...)
+
+# 2. Migrar dados
+op.execute("INSERT INTO credentials ...")
+
+# 3. DEPOIS adicionar FK
+op.create_foreign_key(
+    'fk_credentials_user_id',
+    'credentials', 'users',
+    ['user_id'], ['id'],
+    ondelete='CASCADE'
+)
+```
+
+### Problema 2: Testes falham após refatoração
+
+**Erro:**
+```
+TypeError: signup() missing required argument: 'password'
+```
+
+**Solução:**
+```python
+# Atualizar fixtures em conftest.py
+@pytest.fixture
+def signup_request():
+    return SignupRequest(  # Era UserCreate
+        email="test@example.com",
+        password="Test@1234",
+        full_name="Test User"
+    )
+```
+
+### Problema 3: Rate limiting não funciona
+
+**Erro:**
+```
+redis.exceptions.ConnectionError: Error connecting to Redis
+```
+
+**Solução:**
+```bash
+# Verificar Redis rodando
+docker ps | grep redis
+
+# Se não, subir:
+docker-compose up -d redis
+
+# Testar conexão:
+redis-cli ping  # Deve retornar PONG
+```
+
+### Problema 4: MFA QR code não exibe
+
+**Erro:**
+```
+ModuleNotFoundError: No module named 'qrcode'
+```
+
+**Solução:**
+```bash
+# Instalar dependências faltantes
+uv add qrcode pillow
+uv sync
+
+# Verificar instalação
+python -c "import qrcode; print('OK')"
+```
+
+---
+
+## 📞 SUPORTE E RECURSOS
+
+**Documentação de Referência:**
+- [RFC 6749 - OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc6749)
+- [OWASP Auth Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
+- [FastAPI Security](https://fastapi.tiangolo.com/tutorial/security/)
+- [SQLAlchemy Relationships](https://docs.sqlalchemy.org/en/14/orm/relationships.html)
+
+**Ferramentas Úteis:**
+- **Postman Collection:** `postman/auth_v2_endpoints.json` (criar)
+- **DB Browser:** Adminer (http://localhost:8080)
+- **Redis CLI:** `redis-cli -h localhost -p 6379`
+- **Migration Viewer:** `alembic history --verbose`
+
+**Contacts (Exemplo):**
+- Tech Lead: [email]
+- Security Team: [email]
+- DevOps: [email]
+
+---
+
+**🎉 PRONTO PARA COMEÇAR A REFATORAÇÃO!**
+
+Siga este guia passo a passo e você terá um sistema Auth/User seguro, escalável e seguindo as melhores práticas em 8 semanas. Boa sorte! 🚀
+
+---
+
+### 📦 Gerenciador de Pacotes
+
+**IMPORTANTE:** Este projeto usa `uv` como gerenciador de pacotes Python (NÃO use pip ou poetry)
+
+**Comandos:**
 - Adicionar dependências: `uv add <package>`
 - Adicionar dev dependencies: `uv add --dev <package>`
 - Sincronizar ambiente: `uv sync`
-- **NÃO USE:** `pip install` ou `poetry add`
+- Atualizar dependências: `uv lock --upgrade`
+
+**NÃO USE:** `pip install` ou `poetry add`
+
+---
+
+---
+
+## 📧 Sistema de Email: MailDev → Postal
+
+### 📋 Decisão Arquitetural
+
+**Data da Decisão:** 22/12/2025  
+**Status:** ✅ DEFINIDO  
+**Responsável:** Arquitetura de Infraestrutura
+
+---
+
+### 🎯 Contexto
+
+O sistema necessita de capacidade de envio de emails para:
+- ✅ Verificação de email (email verification)
+- ✅ Reset de senha (password reset)
+- ✅ Notificações de segurança (login suspeito, MFA)
+- ✅ Alertas administrativos
+
+**Restrição:** Sem servidor SMTP pago (SendGrid, AWS SES, Mailgun requerem cartão)
+
+---
+
+### 📌 Solução Escolhida
+
+#### **Fase 1: Desenvolvimento (ATUAL)**
+**Ferramenta:** MailDev  
+**Motivo:** SMTP server open-source para captura de emails (não envia para internet)
+
+**Configuração:**
+```yaml
+# docker/docker-compose.yml
+services:
+  maildev:
+    image: maildev/maildev
+    container_name: wppbot_maildev
+    ports:
+      - "1080:1080"  # Web UI (visualizar emails)
+      - "1025:1025"  # SMTP Server
+    environment:
+      - MAILDEV_SMTP_PORT=1025
+      - MAILDEV_WEB_PORT=1080
+    restart: unless-stopped
+```
+
+**Environment Variables:**
+```bash
+# .env.development
+SMTP_HOST=maildev
+SMTP_PORT=1025
+SMTP_USER=""
+SMTP_PASSWORD=""
+SMTP_FROM=noreply@wppbot.local
+SMTP_TLS=false
+SMTP_ENABLED=true
+```
+
+**Vantagens:**
+- ✅ 100% gratuito e open-source
+- ✅ Interface web em http://localhost:1080
+- ✅ Captura todos os emails (perfeito para testar templates)
+- ✅ Zero configuração adicional
+- ✅ 1 container leve (< 50MB)
+
+**Desvantagens:**
+- ⚠️ Não envia emails reais (apenas captura)
+- ⚠️ Apenas para desenvolvimento
+
+**Comando:**
+```bash
+# Subir apenas MailDev
+docker-compose up maildev -d
+
+# Acessar UI
+open http://localhost:1080
+```
+
+---
+
+#### **Fase 2: Produção (FUTURO)**
+**Ferramenta:** Postal  
+**Motivo:** SMTP server open-source completo (envia emails reais)
+
+**Configuração:**
+```yaml
+# docker/docker-compose.prod.yml
+services:
+  postal:
+    image: ghcr.io/postalserver/postal:latest
+    container_name: wppbot_postal
+    ports:
+      - "25:25"     # SMTP
+      - "587:587"   # Submission
+      - "5000:5000" # Admin Web UI
+    environment:
+      - POSTAL_MYSQL_HOST=postal_mysql
+      - POSTAL_MYSQL_DATABASE=postal
+      - POSTAL_MYSQL_USERNAME=postal
+      - POSTAL_MYSQL_PASSWORD=${POSTAL_DB_PASSWORD}
+      - POSTAL_RABBITMQ_HOST=postal_rabbitmq
+    depends_on:
+      - postal_mysql
+      - postal_rabbitmq
+    volumes:
+      - postal-data:/opt/postal
+    restart: unless-stopped
+
+  postal_mysql:
+    image: mysql:8.0
+    container_name: wppbot_postal_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${POSTAL_MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: postal
+      MYSQL_USER: postal
+      MYSQL_PASSWORD: ${POSTAL_DB_PASSWORD}
+    volumes:
+      - postal-mysql-data:/var/lib/mysql
+    restart: unless-stopped
+
+  postal_rabbitmq:
+    image: rabbitmq:3-management
+    container_name: wppbot_postal_rabbitmq
+    volumes:
+      - postal-rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+volumes:
+  postal-data:
+  postal-mysql-data:
+  postal-rabbitmq-data:
+```
+
+**Environment Variables:**
+```bash
+# .env.production
+SMTP_HOST=postal
+SMTP_PORT=587
+SMTP_USER=wppbot@yourdomain.com
+SMTP_PASSWORD=${POSTAL_API_KEY}
+SMTP_FROM=noreply@yourdomain.com
+SMTP_TLS=true
+SMTP_ENABLED=true
+
+POSTAL_DB_PASSWORD=<strong_password>
+POSTAL_MYSQL_ROOT_PASSWORD=<strong_password>
+```
+
+**Vantagens:**
+- ✅ 100% gratuito e open-source
+- ✅ SMTP server completo (envia emails reais)
+- ✅ Interface web de gerenciamento (tracking, webhooks, estatísticas)
+- ✅ Suporta múltiplos domínios
+- ✅ API REST completa
+- ✅ Tracking de emails (aberturas, cliques)
+- ✅ Usado em produção por empresas reais
+
+**Desvantagens:**
+- ⚠️ Requer 3 containers (Postal + MySQL + RabbitMQ)
+- ⚠️ Configuração mais complexa
+- ⚠️ Requer domínio próprio e configuração DNS (SPF, DKIM, DMARC)
+
+**Migração Estimada:** 4-8 horas (configuração DNS + testes)
+
+---
+
+### 📝 Estratégia de Notificações
+
+**Canal Único:** Email via SMTP
+
+**Decisão:** O sistema utilizará **exclusivamente email** para notificações de segurança e verificação. WhatsApp será usado apenas para interação com leads/clientes do negócio, não para autenticação de usuários internos.
+
+**Motivos:**
+- ✅ Separação clara: WhatsApp = Bot comercial | Email = Sistema interno
+- ✅ Email é padrão universal para autenticação
+- ✅ Evita misturar contextos (cliente vs admin)
+- ✅ Usuários internos (admin, atendente) sempre têm email corporativo
+
+**Implementação:**
+```python
+# src/robbot/services/email_service.py
+from aiosmtplib import SMTP
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from jinja2 import Environment, FileSystemLoader
+
+class EmailService:
+    def __init__(self):
+        self.smtp_host = settings.SMTP_HOST
+        self.smtp_port = settings.SMTP_PORT
+        self.smtp_user = settings.SMTP_USER
+        self.smtp_password = settings.SMTP_PASSWORD
+        self.smtp_from = settings.SMTP_FROM
+        self.smtp_tls = settings.SMTP_TLS
+        
+        # Carregar templates Jinja2
+        self.template_env = Environment(
+            loader=FileSystemLoader("templates/email")
+        )
+    
+    async def send_verification_email(self, email: str, code: str) -> bool:
+        """Envia código de verificação de email"""
+        template = self.template_env.get_template("verification.html")
+        html_content = template.render(code=code)
+        
+        return await self._send_email(
+            to=email,
+            subject="Código de Verificação - WppBot",
+            html_content=html_content,
+            text_content=f"Seu código de verificação: {code}\n\nVálido por 10 minutos."
+        )
+    
+    async def send_password_reset_email(self, email: str, token: str) -> bool:
+        """Envia link de reset de senha"""
+        reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+        template = self.template_env.get_template("password_reset.html")
+        html_content = template.render(reset_link=reset_link)
+        
+        return await self._send_email(
+            to=email,
+            subject="Reset de Senha - WppBot",
+            html_content=html_content,
+            text_content=f"Link de reset: {reset_link}\n\nVálido por 1 hora."
+        )
+    
+    async def send_security_alert(self, email: str, alert_type: str, details: dict) -> bool:
+        """Envia alerta de segurança (login suspeito, MFA, etc)"""
+        template = self.template_env.get_template("security_alert.html")
+        html_content = template.render(alert_type=alert_type, **details)
+        
+        return await self._send_email(
+            to=email,
+            subject=f"Alerta de Segurança: {alert_type}",
+            html_content=html_content,
+            text_content=f"Alerta: {alert_type}\n\nDetalhes: {details}"
+        )
+    
+    async def _send_email(self, to: str, subject: str, html_content: str, text_content: str) -> bool:
+        """Método interno para envio via SMTP"""
+        try:
+            message = MIMEMultipart("alternative")
+            message["From"] = self.smtp_from
+            message["To"] = to
+            message["Subject"] = subject
+            
+            # Adicionar versão texto e HTML
+            message.attach(MIMEText(text_content, "plain"))
+            message.attach(MIMEText(html_content, "html"))
+            
+            # Conectar e enviar
+            async with SMTP(
+                hostname=self.smtp_host,
+                port=self.smtp_port,
+                use_tls=self.smtp_tls
+            ) as smtp:
+                if self.smtp_user and self.smtp_password:
+                    await smtp.login(self.smtp_user, self.smtp_password)
+                
+                await smtp.send_message(message)
+            
+            logger.info(f"Email enviado com sucesso para {to}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao enviar email para {to}: {e}")
+            
+            # Em desenvolvimento, mostrar código no log
+            if settings.DEBUG:
+                logger.warning(f"[DEBUG] Conteúdo do email:\n{text_content}")
+            
+            return False
+```
+
+**Dependências Necessárias:**
+```bash
+uv add aiosmtplib  # Cliente SMTP assíncrono
+uv add jinja2      # Templates de email
+```
+
+---
+
+### ✅ Checklist de Implementação
+
+#### **Fase 1: MailDev (AGORA)**
+- [ ] Adicionar serviço `maildev` ao `docker-compose.yml`
+- [ ] Configurar variáveis SMTP no `.env.development`
+- [ ] Criar `src/robbot/services/email_service.py`
+- [ ] Criar templates de email (HTML + texto plano):
+  - [ ] `templates/email/verification.html`
+  - [ ] `templates/email/password_reset.html`
+  - [ ] `templates/email/security_alert.html`
+- [ ] Implementar `EmailService.send_verification_email()`
+- [ ] Implementar `EmailService.send_password_reset_email()`
+- [ ] Criar testes unitários (`tests/unit/services/test_email_service.py`)
+- [ ] Criar testes de integração (verificar envio via MailDev)
+- [ ] Documentar uso do MailDev no README.md
+- [ ] Testar manualmente enviando email e visualizando em http://localhost:1080
+
+#### **Fase 2: Postal (FUTURO - Quando for para produção)**
+- [ ] Adquirir domínio próprio (ex: wppbot.com.br)
+- [ ] Configurar DNS records:
+  - [ ] SPF record: `v=spf1 ip4:YOUR_SERVER_IP ~all`
+  - [ ] DKIM record: (gerado pelo Postal)
+  - [ ] DMARC record: `v=DMARC1; p=quarantine; rua=mailto:dmarc@wppbot.com.br`
+- [ ] Criar `docker-compose.prod.yml` com Postal + MySQL + RabbitMQ
+- [ ] Configurar variáveis SMTP no `.env.production`
+- [ ] Migrar credenciais do MailDev para Postal
+- [ ] Configurar webhook do Postal (tracking de aberturas/cliques)
+- [ ] Atualizar `EmailService` para usar API do Postal (opcional, SMTP também funciona)
+- [ ] Testar envio real de emails
+- [ ] Configurar alertas de falha de envio
+- [ ] Monitorar reputação do domínio (https://mxtoolbox.com)
+
+---
+
+### 📊 Estimativa de Esforço
+
+| Fase | Tarefa | Tempo | Complexidade |
+|------|--------|-------|--------------|
+| Fase 1 | Configurar MailDev no Docker | 30 min | Baixa |
+| Fase 1 | Criar EmailService | 2h | Média |
+| Fase 1 | Criar templates HTML | 1h | Baixa |
+| Fase 1 | Testes unitários + integração | 2h | Média |
+| Fase 1 | Documentação | 30 min | Baixa |
+| **TOTAL FASE 1** | | **6h** | |
+| Fase 2 | Configurar DNS (SPF/DKIM/DMARC) | 2h | Alta |
+| Fase 2 | Configurar Postal no Docker | 3h | Alta |
+| Fase 2 | Migração e testes | 2h | Média |
+| Fase 2 | Monitoramento | 1h | Baixa |
+| **TOTAL FASE 2** | | **8h** | |
+
+---
+
+### 🚨 Riscos e Mitigações
+
+| Risco | Probabilidade | Impacto | Mitigação |
+|-------|---------------|---------|-----------|
+| Emails do Postal caírem em SPAM | Alta | Alto | Configurar corretamente SPF/DKIM/DMARC + warming do domínio |
+| MailDev não capturar emails | Baixa | Baixo | Verificar logs do container, porta 1025 aberta |
+| Postal consumir muitos recursos | Média | Médio | Monitorar uso de CPU/RAM, escalar se necessário |
+| Domínio bloqueado por abuso | Baixa | Alto | Implementar rate limiting, captcha, monitorar bounces |
+
+---
+
+### 📚 Referências
+
+- **MailDev:** https://github.com/maildev/maildev
+- **Postal:** https://docs.postalserver.io/
+- **SPF/DKIM/DMARC:** https://www.cloudflare.com/learning/email-security/dmarc-dkim-spf/
+- **Email Best Practices:** https://sendgrid.com/blog/email-best-practices/
+- **aiosmtplib:** https://aiosmtplib.readthedocs.io/
+- **Jinja2 Templates:** https://jinja.palletsprojects.com/
+
+---
+
+### 🔗 Dependências
+
+- **Depende de:** 
+  - ✅ Docker Compose configurado
+  - ✅ Sistema de autenticação (para enviar códigos)
+  - 🔜 Templates de email (Jinja2)
+  - 🔜 Dependências Python: `aiosmtplib`, `jinja2`
+  
+- **Necessário para:**
+  - 🔜 Email Verification (Violação #7 da Auditoria)
+  - 🔜 Password Reset seguro
+  - 🔜 Notificações de segurança (MFA, login suspeito)
+  - 🔜 Alertas administrativos
+
+---
+
+### 📌 Notas Importantes
+
+**❌ NÃO usar WhatsApp para notificações de autenticação:**
+- WhatsApp = Comunicação com leads/clientes (bot comercial)
+- Email = Notificações de sistema/segurança (admin, atendentes)
+- Separação clara de contextos evita confusão
+
+**✅ Usuários internos sempre têm email corporativo:**
+- Admins: email obrigatório no cadastro
+- Atendentes: email obrigatório no cadastro
+- Email é o identificador único do sistema
+
+---
+
+---
+
+## 🔐 Estratégia Frontend: Armazenamento de Tokens JWT
+
+### 📋 Decisão Arquitetural
+
+**Data da Decisão:** 22/12/2025  
+**Status:** ✅ DEFINIDO  
+**Responsável:** Arquitetura de Segurança
+
+---
+
+### 🎯 Contexto
+
+O sistema utiliza autenticação JWT com dois tipos de tokens:
+- **Access Token:** Curta duração (15 minutos), usado em todas as requisições autenticadas
+- **Refresh Token:** Longa duração (7 dias), usado apenas para renovar o access token
+
+**Ameaças:**
+- 🔴 **XSS (Cross-Site Scripting):** Código malicioso pode ler `localStorage` e roubar tokens
+- 🔴 **CSRF (Cross-Site Request Forgery):** Requisições forjadas usando cookies automáticos
+- 🔴 **Token Theft:** Roubo de tokens via extensões maliciosas, injeção de código
+
+---
+
+### 📌 Estratégia Escolhida: **HttpOnly Cookies + CSRF Protection**
+
+#### **Armazenamento de Tokens**
+
+| Token | Onde Armazenar | Motivo |
+|-------|----------------|--------|
+| **Refresh Token** | ✅ **HttpOnly Cookie** (SameSite=Strict, Secure) | Proteção máxima contra XSS, não acessível via JavaScript |
+| **Access Token** | ⚠️ **Memory only** (variável JavaScript) | XSS-safe, mas perde na recarga da página |
+| **User Info** | ✅ **localStorage** (apenas dados públicos: nome, role, email) | Pode ser lido por XSS, mas não expõe credenciais |
+
+---
+
+### 🔧 Implementação Backend (FastAPI)
+
+#### **1. Login: Configurar Cookies HttpOnly**
+
+```python
+# src/robbot/adapters/controllers/auth_controller.py
+from fastapi import Response
+from datetime import timedelta
+
+@router.post("/login")
+async def login(
+    credentials: LoginRequest,
+    response: Response,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """Login com tokens em cookies HttpOnly"""
+    
+    # Autenticar
+    result = await auth_service.authenticate(
+        email=credentials.email,
+        password=credentials.password
+    )
+    
+    # Configurar Refresh Token em HttpOnly Cookie
+    response.set_cookie(
+        key="refresh_token",
+        value=result["refresh_token"],
+        httponly=True,           # ✅ Não acessível via JavaScript
+        secure=True,             # ✅ Apenas HTTPS (produção)
+        samesite="strict",       # ✅ Proteção CSRF
+        max_age=7 * 24 * 60 * 60,  # 7 dias
+        path="/api/v1/auth/refresh"  # ✅ Cookie enviado apenas nesse endpoint
+    )
+    
+    # Configurar Access Token em HttpOnly Cookie
+    response.set_cookie(
+        key="access_token",
+        value=result["access_token"],
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=15 * 60,  # 15 minutos
+        path="/api/v1"    # Enviado em todas as rotas /api/v1/*
+    )
+    
+    # Retornar dados públicos para localStorage (frontend)
+    return {
+        "user": {
+            "id": result["user"].id,
+            "email": result["user"].email,
+            "full_name": result["user"].full_name,
+            "role": result["user"].role,
+        },
+        "expires_in": 900  # 15 min em segundos
+    }
+```
+
+#### **2. Refresh: Ler Cookie Automaticamente**
+
+```python
+@router.post("/refresh")
+async def refresh_token(
+    request: Request,
+    response: Response,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """Renova access token usando refresh token do cookie"""
+    
+    # Ler refresh token do cookie HttpOnly
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(401, "Refresh token ausente")
+    
+    # Renovar tokens
+    result = await auth_service.refresh(refresh_token)
+    
+    # Atualizar access token no cookie
+    response.set_cookie(
+        key="access_token",
+        value=result["access_token"],
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=15 * 60,
+        path="/api/v1"
+    )
+    
+    # Opcionalmente rotacionar refresh token (melhor prática)
+    if result.get("new_refresh_token"):
+        response.set_cookie(
+            key="refresh_token",
+            value=result["new_refresh_token"],
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=7 * 24 * 60 * 60,
+            path="/api/v1/auth/refresh"
+        )
+    
+    return {"message": "Token renovado", "expires_in": 900}
+```
+
+#### **3. Logout: Limpar Cookies**
+
+```python
+@router.post("/logout")
+async def logout(
+    request: Request,
+    response: Response,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """Logout e revogação de tokens"""
+    
+    # Ler tokens dos cookies
+    access_token = request.cookies.get("access_token")
+    refresh_token = request.cookies.get("refresh_token")
+    
+    # Revogar tokens no banco
+    if refresh_token:
+        await auth_service.revoke_refresh_token(refresh_token)
+    
+    # Limpar cookies
+    response.delete_cookie("access_token", path="/api/v1")
+    response.delete_cookie("refresh_token", path="/api/v1/auth/refresh")
+    
+    return {"message": "Logout realizado"}
+```
+
+#### **4. Dependência: Ler Access Token do Cookie**
+
+```python
+# src/robbot/api/v1/dependencies.py
+from fastapi import Request, Depends, HTTPException
+
+async def get_current_user(
+    request: Request,
+    user_service: UserService = Depends(get_user_service)
+) -> User:
+    """Extrai usuário do access token no cookie"""
+    
+    # Ler access token do cookie HttpOnly
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(401, "Não autenticado")
+    
+    try:
+        # Decodificar JWT
+        payload = jwt.decode(
+            access_token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"]
+        )
+        user_id = payload.get("sub")
+        
+        # Buscar usuário
+        user = await user_service.get_by_id(user_id)
+        if not user or not user.is_active:
+            raise HTTPException(401, "Usuário inválido")
+        
+        return user
+        
+    except JWTError:
+        raise HTTPException(401, "Token inválido")
+```
+
+---
+
+### 🎨 Implementação Frontend (React/Vue/Angular)
+
+#### **1. Login: Salvar dados públicos no localStorage**
+
+```javascript
+// services/authService.js
+async function login(email, password) {
+  const response = await fetch('/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',  // ✅ IMPORTANTE: Envia e recebe cookies
+    body: JSON.stringify({ email, password })
+  });
+  
+  if (!response.ok) {
+    throw new Error('Login falhou');
+  }
+  
+  const data = await response.json();
+  
+  // Salvar dados públicos no localStorage (nome, role, email)
+  localStorage.setItem('user', JSON.stringify(data.user));
+  
+  // Tokens estão em HttpOnly cookies (não acessível aqui)
+  
+  return data.user;
+}
+```
+
+#### **2. Refresh Automático (Interceptor)**
+
+```javascript
+// services/apiClient.js
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: '/api/v1',
+  withCredentials: true  // ✅ Envia cookies automaticamente
+});
+
+// Interceptor para refresh automático
+api.interceptors.response.use(
+  response => response,
+  async error => {
+    const originalRequest = error.config;
+    
+    // Se 401 e não é refresh endpoint
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        // Tentar renovar token (refresh_token vai no cookie)
+        await axios.post('/api/v1/auth/refresh', {}, {
+          withCredentials: true
+        });
+        
+        // Repetir requisição original (novo access_token no cookie)
+        return api(originalRequest);
+        
+      } catch (refreshError) {
+        // Refresh falhou, fazer logout
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+```
+
+#### **3. Logout**
+
+```javascript
+async function logout() {
+  await fetch('/api/v1/auth/logout', {
+    method: 'POST',
+    credentials: 'include'  // Envia cookies para revogação
+  });
+  
+  // Limpar localStorage
+  localStorage.removeItem('user');
+  
+  // Redirecionar para login
+  window.location.href = '/login';
+}
+```
+
+#### **4. Hook de Autenticação (React)**
+
+```javascript
+// hooks/useAuth.js
+import { useState, useEffect } from 'react';
+
+export function useAuth() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    // Carregar usuário do localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+    setLoading(false);
+  }, []);
+  
+  const login = async (email, password) => {
+    const userData = await authService.login(email, password);
+    setUser(userData);
+  };
+  
+  const logout = async () => {
+    await authService.logout();
+    setUser(null);
+  };
+  
+  return { user, loading, login, logout };
+}
+```
+
+---
+
+### 🛡️ Proteções Implementadas
+
+| Ameaça | Proteção | Como Funciona |
+|--------|----------|---------------|
+| **XSS** | HttpOnly cookies | JavaScript malicioso não pode ler tokens dos cookies |
+| **CSRF** | SameSite=Strict | Cookies não enviados em requisições cross-origin |
+| **Token Theft** | Secure flag | Cookies apenas em HTTPS (produção) |
+| **Replay Attack** | Refresh rotation | Refresh token muda a cada uso (1 vez só) |
+| **Token Exposure** | Path restriction | Refresh token só enviado em `/auth/refresh` |
+
+---
+
+### ⚙️ Configuração de Settings
+
+```python
+# src/robbot/core/settings.py
+class Settings(BaseSettings):
+    # JWT Config
+    SECRET_KEY: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    
+    # Cookie Config
+    COOKIE_SECURE: bool = True  # False apenas em dev (HTTP)
+    COOKIE_SAMESITE: str = "strict"  # strict | lax | none
+    COOKIE_HTTPONLY: bool = True
+    COOKIE_DOMAIN: str | None = None  # .yourdomain.com (subdomínios)
+    
+    # CORS Config (permitir frontend)
+    CORS_ORIGINS: list[str] = ["http://localhost:3000"]  # React dev
+    CORS_CREDENTIALS: bool = True  # ✅ Permitir cookies cross-origin
+    
+    class Config:
+        env_file = ".env"
+```
+
+```python
+# src/robbot/main.py
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# Configurar CORS para cookies
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,  # ✅ IMPORTANTE para cookies
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+---
+
+### 📊 Comparação de Estratégias
+
+| Abordagem | XSS | CSRF | Complexidade | Usabilidade |
+|-----------|-----|------|--------------|-------------|
+| **localStorage** | ❌ Vulnerável | ✅ Seguro | Baixa | ✅ Persiste recarga |
+| **sessionStorage** | ❌ Vulnerável | ✅ Seguro | Baixa | ⚠️ Perde na aba fechada |
+| **Memory only** | ✅ Seguro | ✅ Seguro | Média | ❌ Perde na recarga |
+| **HttpOnly Cookie** | ✅ Seguro | ⚠️ Requer SameSite | Média | ✅ Persiste recarga |
+| **✅ Escolhida: HttpOnly + Refresh** | ✅ Seguro | ✅ Seguro | Alta | ✅ Persiste recarga |
+
+---
+
+### ✅ Checklist de Implementação
+
+#### **Backend (FastAPI)**
+- [ ] Atualizar `POST /auth/login` para definir cookies HttpOnly
+- [ ] Atualizar `POST /auth/refresh` para ler e renovar via cookies
+- [ ] Atualizar `POST /auth/logout` para limpar cookies
+- [ ] Modificar `get_current_user()` para ler access token do cookie
+- [ ] Configurar CORS com `allow_credentials=True`
+- [ ] Adicionar settings de cookies (secure, samesite, domain)
+- [ ] Implementar refresh token rotation (opcional, P1)
+- [ ] Testes de integração (login, refresh, logout com cookies)
+
+#### **Frontend (React/Vue)**
+- [ ] Configurar `withCredentials: true` em todas as requisições
+- [ ] Implementar interceptor de refresh automático (axios/fetch)
+- [ ] Usar localStorage apenas para dados públicos (nome, role)
+- [ ] Remover localStorage de tokens (se existir)
+- [ ] Testar fluxo completo: login → refresh → logout
+- [ ] Testar perda de conexão (401 → refresh → retry)
+- [ ] Documentar uso de cookies no README do frontend
+
+---
+
+### 🚨 Riscos e Mitigações
+
+| Risco | Probabilidade | Impacto | Mitigação |
+|-------|---------------|---------|-----------|
+| CORS mal configurado bloqueia cookies | Alta | Alto | Testar com `allow_credentials=True` e origins corretos |
+| Cookie não enviado em dev (HTTP) | Média | Baixo | `COOKIE_SECURE=False` apenas em `.env.development` |
+| Subdomain mismatch (frontend ≠ backend) | Média | Médio | Usar proxy reverso ou configurar `COOKIE_DOMAIN` |
+| Refresh loop infinito (401 → refresh → 401) | Baixa | Alto | Flag `_retry` no interceptor para evitar loop |
+
+---
+
+### 📚 Referências
+
+- **OWASP JWT Security:** https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html
+- **HttpOnly Cookies:** https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#restrict_access_to_cookies
+- **SameSite Attribute:** https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+- **FastAPI Cookies:** https://fastapi.tiangolo.com/advanced/response-cookies/
+- **CORS Credentials:** https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#requests_with_credentials
+
+---
+
+### 🔗 Dependências
+
+- **Depende de:**
+  - ✅ Sistema de autenticação JWT implementado
+  - ✅ FastAPI com CORS configurado
+  - 🔜 Frontend com axios/fetch
+  
+- **Necessário para:**
+  - 🔜 Todas as funcionalidades autenticadas
+  - 🔜 Refresh token rotation (Violação #6 da Auditoria)
+  - 🔜 Session management (Violação #8 da Auditoria)
+
+---
+
+### 📌 Decisões Arquiteturais Registradas
+
+**ARQ-002: Armazenamento de JWT em HttpOnly Cookies**
+
+**Contexto:** Necessidade de armazenar tokens JWT de forma segura no frontend
+
+**Decisão:** Utilizar HttpOnly Cookies com SameSite=Strict para ambos os tokens (access e refresh)
+
+**Consequências:**
+- ✅ Proteção contra XSS (JavaScript não acessa cookies)
+- ✅ Proteção contra CSRF (SameSite=Strict)
+- ✅ Tokens persistem entre recargas de página
+- ⚠️ Requer CORS configurado com `allow_credentials=True`
+- ⚠️ Aumenta complexidade do frontend (interceptors)
+- ⚠️ Requer HTTPS em produção (Secure flag)
+
+**Alternativas Consideradas:**
+1. localStorage: Rejeitado por vulnerabilidade a XSS
+2. sessionStorage: Rejeitado por perda de dados ao fechar aba
+3. Memory only: Rejeitado por perda de dados ao recarregar página
+
+**Status:** ✅ APROVADO  
+**Data:** 22/12/2025
+
+---
 
 ---
 
