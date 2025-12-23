@@ -1,10 +1,16 @@
-"""Authentication service implementing signup, login, token refresh and revocation."""
+"""Authentication service implementing signup, login, token refresh and revocation.
+
+FASE 0: Prepared for new repositories (CredentialRepository, AuthSessionRepository)
+and new schemas from robbot.schemas.auth.
+"""
 
 import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from robbot.adapters.repositories.auth_session_repository import AuthSessionRepository
+from robbot.adapters.repositories.credential_repository import CredentialRepository
 from robbot.adapters.repositories.token_repository import TokenRepository
 from robbot.adapters.repositories.user_repository import UserRepository
 from robbot.common.utils import send_email
@@ -19,11 +25,17 @@ logger = logging.getLogger(__name__)
 class AuthService:
     """
     Service layer that implements authentication business rules.
+    
+    FASE 0: Includes new repositories for credentials and sessions.
+    FASE 1: Will migrate password logic to CredentialRepository.
     """
 
     def __init__(self, db: Session):
         self.repo = UserRepository(db)
         self.token_repo = TokenRepository(db)
+        # FASE 0 - New repositories (not yet used, prepared for FASE 1)
+        self.credential_repo = CredentialRepository(db)
+        self.session_repo = AuthSessionRepository(db)
 
     def signup(self, payload: UserCreate) -> UserOut:
         """
@@ -39,7 +51,7 @@ class AuthService:
 
     def authenticate_user(self, email: str, password: str) -> Optional[Token]:
         """
-        Validate credentials and return tokens.
+        Validate credentials and return tokens with user data.
         """
         user = self.repo.get_by_email(email)
         if not user:
@@ -53,7 +65,7 @@ class AuthService:
             return None
         logger.info(f"Login successful: user {email} (id={user.id})")
         tokens = security.create_access_refresh_tokens(str(user.id))
-        return Token(**tokens)
+        return Token(**tokens, user=user)  # Include user object for cookie strategy
 
     def refresh(self, refresh_token: str) -> Token:
         """

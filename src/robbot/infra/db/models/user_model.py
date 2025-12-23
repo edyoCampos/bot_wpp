@@ -27,3 +27,16 @@ class UserModel(Base):
         back_populates="assigned_to",
         foreign_keys="LeadModel.assigned_to_user_id"
     )
+    
+    # FASE 0 - New relationships for Auth refactoring
+    credential = relationship(
+        "CredentialModel",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
+    auth_sessions = relationship(
+        "AuthSessionModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

@@ -1,11 +1,17 @@
-"""FastAPI application factory and global exception handling."""
+"""FastAPI application factory and global exception handling.
+
+FASE 0: Added rate limiter initialization on startup.
+"""
 
 import logging
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from robbot.api.v1.dependencies import initialize_rate_limiter
 from robbot.api.v1.routers.api import api_router
+from robbot.config.settings import get_settings
 from robbot.core.logging_setup import configure_logging
 from robbot.infra.db.base import SessionLocal
 from robbot.services.alert_service import AlertService
@@ -17,8 +23,33 @@ def create_app() -> FastAPI:
     Registers routers and exception handlers and configures logging.
     """
     configure_logging()
+    settings = get_settings()
+    
     application = FastAPI(title="Robbot API", version="0.1.0")
+    
+    # Configure CORS middleware for HttpOnly cookies
+    # IMPORTANT: allow_credentials=True is required for cookies to work
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=settings.CORS_CREDENTIALS,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
     application.include_router(api_router, prefix="/api/v1")
+
+    @application.on_event("startup")
+    async def startup_event():
+        """Initialize services on application startup."""
+        logger = logging.getLogger("robbot.startup")
+        logger.info("Initializing rate limiter...")
+        try:
+            initialize_rate_limiter()
+            logger.info("✓ Rate limiter initialized successfully")
+        except Exception as e:
+            logger.error(f"✗ Failed to initialize rate limiter: {e}")
+            # Don't fail app startup, rate limiter will fail gracefully
 
     @application.exception_handler(Exception)
     async def global_exception_handler(_request: Request, exc: Exception):
