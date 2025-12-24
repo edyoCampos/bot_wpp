@@ -91,8 +91,8 @@ services:
   # ---------------------------------------------------------------------------
   api:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     container_name: api_app
     restart: unless-stopped
     env_file:
@@ -120,7 +120,7 @@ services:
       - "127.0.0.1:3333:3333"
 
     volumes:
-      - ../:/app
+      - .:/app
 
     depends_on:
       db:
@@ -140,8 +140,8 @@ services:
   # ---------------------------------------------------------------------------
   worker:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile.worker
+      context: .
+      dockerfile: Dockerfile.worker
     # container_name removido porque replicas > 1
     restart: unless-stopped
     
@@ -154,7 +154,7 @@ services:
       REDIS_URL: redis://redis:6379/0
 
     volumes:
-      - ../:/app
+      - .:/app
 
     depends_on:
       db:
