@@ -2963,7 +2963,7 @@ O sistema necessita de capacidade de envio de emails para:
 
 **Configuração:**
 ```yaml
-# docker/docker-compose.yml
+# docker-compose.yml
 services:
   maildev:
     image: maildev/maildev
@@ -3017,7 +3017,7 @@ open http://localhost:1080
 
 **Configuração:**
 ```yaml
-# docker/docker-compose.prod.yml
+# docker-compose.prod.yml
 services:
   postal:
     image: ghcr.io/postalserver/postal:latest
@@ -3911,7 +3911,7 @@ Adicionar serviço Redis ao `docker-compose.yml` para cache e filas.
 
 **Checklist Desenvolvimento:**
 
-- [ ] Adicionar serviço `redis` no `docker/docker-compose.yml`
+- [ ] Adicionar serviço `redis` no `docker-compose.yml`
 - [ ] Usar imagem `redis:7-alpine`
 - [ ] Expor porta `127.0.0.1:6379:6379`
 - [ ] Configurar volume `redis_data:/data`
@@ -4758,7 +4758,7 @@ Container separado para workers Redis.
 
 **Checklist Desenvolvimento:**
 
-- [ ] Criar `docker/Dockerfile.worker` (baseado no Dockerfile da API)
+- [ ] Criar `Dockerfile.worker` (baseado no Dockerfile da API)
 - [ ] CMD: `rq worker messages --url $REDIS_URL`
 - [ ] Adicionar serviço `worker` no `docker-compose.yml`
 - [ ] Configurar escalabilidade (replicas: 2)

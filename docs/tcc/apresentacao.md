@@ -599,7 +599,7 @@ Evita: Respostas erradas por "achar que sabe"
 
 #### **1. Verificar Sistema Rodando:**
 ```bash
-docker compose -f docker/docker-compose.yml ps
+docker compose ps
 
 # Deve mostrar:
 ✅ api_app (healthy)
@@ -612,13 +612,13 @@ docker compose -f docker/docker-compose.yml ps
 #### **2. Monitorar Logs em Tempo Real:**
 ```bash
 # Terminal 1: API
-docker compose -f docker/docker-compose.yml logs -f api | grep "ConversationOrchestrator"
+docker compose logs -f api | grep "ConversationOrchestrator"
 
 # Terminal 2: Workers
-docker compose -f docker/docker-compose.yml logs -f worker | grep "Processing"
+docker compose logs -f worker | grep "Processing"
 
 # Terminal 3: Redis Queue
-docker compose -f docker/docker-compose.yml exec redis redis-cli MONITOR
+docker compose exec redis redis-cli MONITOR
 ```
 
 #### **3. Simular Mensagem (via curl):**
