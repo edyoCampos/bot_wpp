@@ -31,8 +31,8 @@ RUN useradd --create-home --shell /bin/bash appuser
 COPY . /app
 
 # Copia scripts utilitários para /usr/local/bin, garante permissão executável e ajusta dono
-COPY docker/wait-for-db.sh /usr/local/bin/wait-for-db.sh
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY scripts/wait-for-db.sh /usr/local/bin/wait-for-db.sh
+COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/wait-for-db.sh /usr/local/bin/entrypoint.sh \
     && chown -R appuser:appuser /app /usr/local/bin/wait-for-db.sh /usr/local/bin/entrypoint.sh || true
 
@@ -48,5 +48,5 @@ EXPOSE 8000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
-# Default command para desenvolvimento; em produção sobreponha o CMD
-CMD ["python", "-m", "uvicorn", "robbot.main:app", "--host", "0.0.0.0", "--port", "3333", "--reload"]
+# Default command com suporte a porta dinâmica (Railway/Render usa $PORT, local usa 3333)
+CMD python -m uvicorn robbot.main:app --host 0.0.0.0 --port ${PORT:-3333} --workers ${WORKERS:-1}

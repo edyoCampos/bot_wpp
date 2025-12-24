@@ -1,30 +1,121 @@
-# Python-generated files
+# ==================================
+# Python
+# ==================================
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
+develop-eggs/
 dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
 wheels/
 *.egg-info
+.installed.cfg
+*.egg
+MANIFEST
 
-# Project env/config
-.env
-*.log
-*.sqlite3
-
-# Tool caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-
-# Virtual environments
+# ==================================
+# Virtual Environments
+# ==================================
+venv/
+ENV/
+env/
 .venv/
 .env/
 
-# Editors/OS artifacts
+# ==================================
+# IDE
+# ==================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==================================
+# Environment Variables
+# ==================================
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ==================================
+# Database
+# ==================================
+*.db
+*.sqlite
+*.sqlite3
+
+# ==================================
+# Logs
+# ==================================
+*.log
+logs/
+*.log.*
+
+# ==================================
+# OS
+# ==================================
 .DS_Store
 Thumbs.db
-.idea/
-.vscode/
+*.bak
+*.tmp
 sitecustomize.py
+
+# ==================================
+# Docker
+# ==================================
+docker-compose.override.yml
+.dockerignore
+
+# ==================================
+# Alembic
+# ==================================
+alembic/versions/__pycache__/
+
+# ==================================
+# Redis
+# ==================================
+dump.rdb
+
+# ==================================
+# Coverage/Tests
+# ==================================
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+coverage.xml
+
+# ==================================
+# TCC - Documentação Acadêmica
+# ==================================
+# Comentado para manter versionado durante desenvolvimento
+# docs/tcc/
+*.backup.md
+
+# ==================================
+# Scripts de Desenvolvimento
+# ==================================
+# Comentado para manter versionado
+# scripts/auto-commit.sh
+# scripts/auto-commit.ps1
+
+# ==================================
+# Temporary Files
+# ==================================
+*.tmp
+*.temp
+.cache/
+.mypy_cache/
+.ruff_cache/
