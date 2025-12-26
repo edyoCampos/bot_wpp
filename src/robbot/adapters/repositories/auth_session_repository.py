@@ -1,13 +1,9 @@
-"""Repository for authentication session persistence and retrieval operations.
+"""Repositório para operações de persistência e recuperação de sessões de autenticação.
 
-This repository is part of FASE 0 - Preparação.
-It handles all auth session-related database operations.
-
-Author: Sistema de Auditoria de Segurança
-Date: 2025-12-23
+Gerencia todas as operações de banco de dados relacionadas a sessões de autenticação.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -81,7 +77,7 @@ class AuthSessionRepository:
         Returns:
             List of active session models
         """
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         return (
             self.db.query(AuthSessionModel)
             .filter(
@@ -109,16 +105,31 @@ class AuthSessionRepository:
             .all()
         )
 
-    def update_last_used(self, session: AuthSessionModel) -> AuthSessionModel:
-        """Update last_used_at timestamp.
+    def update_last_used(
+        self,
+        session: AuthSessionModel,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+        device_name: str | None = None,
+    ) -> AuthSessionModel:
+        """Update last_used_at timestamp and optionally device metadata.
 
         Args:
             session: Session model to update
+            user_agent: Optional updated user agent
+            ip_address: Optional updated IP address
+            device_name: Optional updated device name
 
         Returns:
             Updated session model
         """
-        session.last_used_at = datetime.utcnow()
+        session.last_used_at = datetime.now(UTC)
+        if user_agent is not None:
+            session.user_agent = user_agent
+        if ip_address is not None:
+            session.ip_address = ip_address
+        if device_name is not None:
+            session.device_name = device_name
         self.db.add(session)
         self.db.commit()
         self.db.refresh(session)
@@ -137,7 +148,7 @@ class AuthSessionRepository:
             Updated session model
         """
         session.is_revoked = True
-        session.revoked_at = datetime.utcnow()
+        session.revoked_at = datetime.now(UTC)
         session.revocation_reason = reason
         self.db.add(session)
         self.db.commit()
@@ -156,7 +167,7 @@ class AuthSessionRepository:
         Returns:
             Number of sessions revoked
         """
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         count = (
             self.db.query(AuthSessionModel)
             .filter(
