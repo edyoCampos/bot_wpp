@@ -1,8 +1,8 @@
 {
 	"info": {
-		"_postman_id": "wpp-bot-api-collection-v1",
+		"_postman_id": "wpp-bot-api-collection-v2",
 		"name": "WPP Bot API - Complete Collection",
-		"description": "Collection completa da API do WhatsApp Bot com Gemini AI.\n\n## 🚀 Como Usar\n\n1. **Importar no Postman**: File > Import > selecione este arquivo\n2. **Configurar Environment**: Importe o arquivo `WPP_Bot_API.postman_environment.json`\n3. **Autenticar**: Execute `Auth > Login` para obter o token JWT\n4. **Testar**: O token é automaticamente salvo e usado nos próximos requests\n\n## 📋 Categorias\n\n- **Health**: Health check e status da API\n- **Auth**: Autenticação, registro, refresh token\n- **Users**: Gerenciamento de usuários\n- **Leads**: Gerenciamento de leads e conversões\n- **Conversations**: Conversas, transferências, fechamento\n- **Messages**: Mensagens (envio, listagem, atualização)\n- **Tags**: Tags e associações com conversas\n- **WAHA**: Sessões WhatsApp e operações WAHA\n- **Webhooks**: Recebimento de webhooks WAHA\n- **Queues**: Monitoramento de filas Redis/RQ\n- **Jobs**: Jobs assíncronos (reengajamento)\n- **AI**: Processamento Gemini AI\n- **Notifications**: Notificações do sistema\n- **Audit**: Logs de auditoria\n\n## 🔐 Autenticação\n\nA maioria dos endpoints requer JWT token no header `Authorization: Bearer {token}`.\nO token é obtido via `POST /api/v1/auth/token` e é válido por 15 minutos.\n- **Topics**: Gerenciamento de tópicos\n- **Playbooks**: Sistema de playbooks com RAG\n- **Playbook Steps**: Sequências de mensagens\n- **Message Descriptions**: Descrições AI com Gemini Vision",
+		"description": "Collection completa da API do WhatsApp Bot com Gemini AI.\n\n## 🚀 Como Usar\n\n1. **Importar no Postman**: File > Import > selecione este arquivo\n2. **Configurar Environment**: Importe o arquivo `WPP_Bot_API.postman_environment.json`\n3. **Autenticar**: Execute `Auth > Login` para obter o token JWT\n4. **Testar**: O token é automaticamente salvo e usado nos próximos requests\n\n## 📋 Categorias\n\n- **Health**: Health check e status da API\n- **Auth**: Autenticação completa (signup, login, MFA, sessions, email verification)\n- **Users**: Gerenciamento de usuários\n- **Leads**: Gerenciamento de leads e conversões\n- **Conversations**: Conversas, transferências, fechamento\n- **Messages**: Mensagens (envio, listagem, atualização)\n- **Tags**: Tags e associações com conversas\n- **WAHA**: Sessões WhatsApp e operações WAHA\n- **Webhooks**: Recebimento de webhooks WAHA\n- **Queues**: Monitoramento de filas Redis/RQ\n- **Jobs**: Jobs assíncronos (reengajamento)\n- **AI**: Processamento Gemini AI\n- **Notifications**: Notificações do sistema\n- **Audit**: Logs de auditoria\n\n## 🔐 Autenticação\n\nA maioria dos endpoints requer JWT token no header `Authorization: Bearer {token}`.\nO token é obtido via `POST /api/v1/auth/token` e é válido por 15 minutos.\n- **Topics**: Gerenciamento de tópicos\n- **Playbooks**: Sistema de playbooks com RAG\n- **Playbook Steps**: Sequências de mensagens\n- **Message Descriptions**: Descrições AI com Gemini Vision",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"auth": {
@@ -76,6 +76,21 @@
 		{
 			"key": "step_id",
 			"value": "paste-step-uuid-here",
+			"type": "string"
+		},
+		{
+			"key": "session_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "email_verification_token",
+			"value": "paste-token-here",
+			"type": "string"
+		},
+		{
+			"key": "mfa_secret",
+			"value": "",
 			"type": "string"
 		}
 	],
@@ -314,6 +329,271 @@
 							]
 						},
 						"description": "Resetar senha com token de recuperação.\n\n**Não requer autenticação**"
+					},
+					"response": []
+				},
+				{
+					"name": "Password Change",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"old_password\": \"Admin@2025!Secure\",\n  \"new_password\": \"NewPassword@2025!Strong\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/password-change",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"password-change"
+							]
+						},
+						"description": "Trocar senha do usuário autenticado.\n\n**Requer autenticação JWT**\n\nInvalida todas as sessões após mudança."
+					},
+					"response": []
+				},
+				{
+					"name": "List Sessions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/sessions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"sessions"
+							]
+						},
+						"description": "Listar todas as sessões ativas do usuário atual.\n\n**Requer autenticação JWT**\n\nMostra device info, IP, última atividade."
+					},
+					"response": []
+				},
+				{
+					"name": "Revoke Session",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/sessions/{{session_id}}/revoke",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"sessions",
+								"{{session_id}}",
+								"revoke"
+							]
+						},
+						"description": "Revogar uma sessão específica (logout remoto de um dispositivo).\n\n**Requer autenticação JWT**"
+					},
+					"response": []
+				},
+				{
+					"name": "Revoke All Sessions",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"except_current\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/sessions/revoke-all",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"sessions",
+								"revoke-all"
+							]
+						},
+						"description": "Revogar todas as sessões (exceto a atual se except_current=true).\n\n**Requer autenticação JWT**\n\nÚtil para logout de todos os dispositivos."
+					},
+					"response": []
+				},
+				{
+					"name": "Email Verify",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/email/verify?token={{email_verification_token}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"email",
+								"verify"
+							],
+							"query": [
+								{
+									"key": "token",
+									"value": "{{email_verification_token}}"
+								}
+							]
+						},
+						"description": "Verificar email com token enviado por email.\n\n**Não requer autenticação**\n\nToken expira em 24h."
+					},
+					"response": []
+				},
+				{
+					"name": "Email Resend Verification",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/email/resend",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"email",
+								"resend"
+							]
+						},
+						"description": "Reenviar email de verificação.\n\n**Requer autenticação JWT**\n\nRate limit: 3 tentativas por hora."
+					},
+					"response": []
+				},
+				{
+					"name": "MFA Setup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"password\": \"Admin@2025!Secure\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/mfa/setup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"mfa",
+								"setup"
+							]
+						},
+						"description": "Iniciar configuração de MFA.\n\n**Requer autenticação JWT**\n\nRetorna QR code e backup codes. Salve o secret!"
+					},
+					"response": []
+				},
+				{
+					"name": "MFA Verify",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/mfa/verify",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"mfa",
+								"verify"
+							]
+						},
+						"description": "Verificar código TOTP e ativar MFA permanentemente.\n\n**Requer autenticação JWT**\n\nCódigo do Google Authenticator."
+					},
+					"response": []
+				},
+				{
+					"name": "MFA Disable",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"password\": \"Admin@2025!Secure\",\n  \"code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/mfa/disable",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"mfa",
+								"disable"
+							]
+						},
+						"description": "Desabilitar MFA.\n\n**Requer autenticação JWT + senha + código TOTP**"
+					},
+					"response": []
+				},
+				{
+					"name": "MFA Login",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@clinicago.com.br\",\n  \"code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/mfa/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"mfa",
+								"login"
+							]
+						},
+						"description": "Completar login com código MFA.\n\n**Não requer autenticação**\n\nUsar após login básico quando MFA está ativo."
 					},
 					"response": []
 				}

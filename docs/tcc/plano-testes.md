@@ -1724,6 +1724,573 @@ Quando encontrar um bug, documentar assim:
 
 ---
 
+## 🔐 FASE 7: SEGURANÇA E AUTENTICAÇÃO AVANÇADA
+
+> **Adicionado em:** 26/12/2025  
+> **Objetivo:** Validar todas as 12 correções de segurança implementadas (Fases 3-5)
+
+### UC-031: MFA Setup - Habilitar Autenticação de Dois Fatores
+**Endpoint**: `POST /api/v1/auth/mfa/setup`  
+**Objetivo**: Habilitar MFA para um usuário e obter QR code + backup codes
+
+**Pré-requisitos**: 
+- Usuário autenticado (token JWT)
+- MFA ainda não habilitado
+
+**Headers**:
+```
+Authorization: Bearer {{auth_token}}
+```
+
+**Payload**:
+```json
+{
+  "password": "Admin@2025!Secure"
+}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "secret": "JBSWY3DPEHPK3PXP",
+  "qr_code": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+  "backup_codes": [
+    "12345678",
+    "23456789",
+    "34567890",
+    "45678901",
+    "56789012",
+    "67890123",
+    "78901234",
+    "89012345",
+    "90123456",
+    "01234567"
+  ]
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] `secret` é string Base32 válida
+- [x] `qr_code` é data URI válida (imagem PNG)
+- [x] `backup_codes` array com 10 códigos únicos
+- [x] Credencial no DB tem `mfa_enabled=false` (aguarda verificação)
+
+**Ação Pós-Teste**:
+- Salvar `secret` para próximo teste
+- Escanear QR code com Google Authenticator ou similar
+
+---
+
+### UC-032: MFA Verify - Confirmar Habilitação do MFA
+**Endpoint**: `POST /api/v1/auth/mfa/verify`  
+**Objetivo**: Verificar código TOTP e ativar MFA permanentemente
+
+**Pré-requisitos**: 
+- MFA setup executado (UC-031)
+- Código TOTP gerado no app autenticador
+
+**Headers**:
+```
+Authorization: Bearer {{auth_token}}
+```
+
+**Payload**:
+```json
+{
+  "code": "123456"
+}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "message": "MFA successfully enabled",
+  "mfa_enabled": true
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] `mfa_enabled=true` no response
+- [x] Credencial no DB atualizada: `mfa_enabled=true`
+- [x] Próximo login requer código TOTP
+
+**Teste de Erro**:
+- Código inválido: 400 "Invalid or expired TOTP code"
+- Código expirado (>30s): 400 "Invalid or expired TOTP code"
+
+---
+
+### UC-033: MFA Login - Autenticação com Dois Fatores
+**Endpoint**: `POST /api/v1/auth/mfa/login`  
+**Objetivo**: Completar login após credenciais corretas quando MFA está ativo
+
+**Pré-requisitos**: 
+- Usuário com MFA habilitado (UC-032)
+- Login básico já realizado (`POST /auth/token`)
+
+**Payload**:
+```json
+{
+  "email": "admin@clinicago.com.br",
+  "code": "123456"
+}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] Tokens JWT válidos retornados
+- [x] Session criada no DB (`auth_sessions` table)
+- [x] Device info e IP capturados
+
+**Teste de Erro**:
+- Código TOTP inválido: 401 "Invalid MFA code"
+- Uso de backup code: 200 (código é invalidado após uso)
+- Rate limiting: Após 5 tentativas → 429 "Too Many Requests"
+
+---
+
+### UC-034: MFA Disable - Desabilitar Autenticação de Dois Fatores
+**Endpoint**: `POST /api/v1/auth/mfa/disable`  
+**Objetivo**: Desabilitar MFA (requer senha + código TOTP)
+
+**Headers**:
+```
+Authorization: Bearer {{auth_token}}
+```
+
+**Payload**:
+```json
+{
+  "password": "Admin@2025!Secure",
+  "code": "123456"
+}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "message": "MFA successfully disabled",
+  "mfa_enabled": false
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] `mfa_enabled=false` no DB
+- [x] `mfa_secret` removido/limpo
+- [x] `backup_codes` removidos
+- [x] Próximo login não requer código
+
+**Teste de Segurança**:
+- Senha incorreta: 401 "Invalid password"
+- Código TOTP inválido: 401 "Invalid MFA code"
+- Sem autenticação: 401 "Not authenticated"
+
+---
+
+### UC-035: Sessions Management - Listar Sessões Ativas
+**Endpoint**: `GET /api/v1/auth/sessions`  
+**Objetivo**: Listar todas as sessões ativas do usuário atual
+
+**Headers**:
+```
+Authorization: Bearer {{auth_token}}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "sessions": [
+    {
+      "id": 1,
+      "device_info": "Chrome 120.0.0 / Windows 10",
+      "ip_address": "192.168.1.100",
+      "last_used_at": "2025-12-26T15:30:00Z",
+      "created_at": "2025-12-26T10:00:00Z",
+      "is_current": true
+    },
+    {
+      "id": 2,
+      "device_info": "Firefox 121.0 / Ubuntu 22.04",
+      "ip_address": "192.168.1.101",
+      "last_used_at": "2025-12-25T18:20:00Z",
+      "created_at": "2025-12-25T08:00:00Z",
+      "is_current": false
+    }
+  ],
+  "total": 2
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] `is_current=true` para sessão atual
+- [x] `device_info` parseia User-Agent corretamente
+- [x] `ip_address` capturado do request
+- [x] Sessões ordenadas por `last_used_at` DESC
+
+---
+
+### UC-036: Sessions Revoke - Revogar Sessão Específica
+**Endpoint**: `POST /api/v1/auth/sessions/{session_id}/revoke`  
+**Objetivo**: Fazer logout de um dispositivo específico
+
+**Headers**:
+```
+Authorization: Bearer {{auth_token}}
+```
+
+**Payload**: Nenhum (session_id vem da URL)
+
+**Resultado Esperado**:
+```
+Status: 204 No Content
+```
+
+**Validações**:
+- [x] Status code: 204
+- [x] Sessão marcada como `is_active=false` no DB
+- [x] Refresh token correspondente revogado
+- [x] Próximo uso do token dessa sessão → 401
+- [x] Não pode revogar sessão de outro usuário → 404
+
+**Teste de Segurança**:
+- Tentar revogar sessão de outro user: 404 "Session not found"
+- Session_id inexistente: 404 "Session not found"
+
+---
+
+### UC-037: Sessions Revoke All - Revogar Todas as Sessões
+**Endpoint**: `POST /api/v1/auth/sessions/revoke-all`  
+**Objetivo**: Fazer logout de TODOS os dispositivos (exceto atual)
+
+**Headers**:
+```
+Authorization: Bearer {{auth_token}}
+```
+
+**Payload**:
+```json
+{
+  "except_current": true
+}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "message": "All sessions revoked successfully",
+  "revoked_count": 3
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] `revoked_count` correto (total - 1 se except_current=true)
+- [x] Sessão atual permanece ativa se `except_current=true`
+- [x] Todas as outras sessões → `is_active=false`
+- [x] Todos os refresh tokens revogados
+
+**Use Case**: Celular roubado/perdido → revocar todas as sessões remotamente
+
+---
+
+### UC-038: Email Verification - Verificar Email do Usuário
+**Endpoint**: `GET /api/v1/auth/email/verify?token={verification_token}`  
+**Objetivo**: Confirmar email após registro ou mudança de email
+
+**Query Params**:
+```
+token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Resultado Esperado**:
+```json
+{
+  "message": "Email verified successfully",
+  "email_verified": true
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] Credencial atualizada: `email_verified=true`
+- [x] Token de verificação é de uso único
+- [x] Token expira em 24h
+- [x] Evento de auditoria registrado
+
+**Teste de Erro**:
+- Token inválido: 400 "Invalid verification token"
+- Token expirado: 400 "Verification token expired"
+- Token já usado: 400 "Email already verified"
+
+---
+
+### UC-039: Email Resend - Reenviar Token de Verificação
+**Endpoint**: `POST /api/v1/auth/email/resend`  
+**Objetivo**: Reenviar email de verificação caso usuário não tenha recebido
+
+**Headers**:
+```
+Authorization: Bearer {{auth_token}}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "message": "Verification email sent successfully"
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] Novo token gerado (token antigo invalidado)
+- [x] Email enviado via MailDev (verificar inbox)
+- [x] Rate limit: 3 tentativas / 1 hora
+
+**Teste de Rate Limiting**:
+- 4º request em 1h: 429 "Too Many Requests"
+- Header `Retry-After` presente no 429
+
+---
+
+### UC-040: Password Reset - Reset Invalida Sessões
+**Endpoint**: `POST /api/v1/auth/password-reset`  
+**Objetivo**: Validar que reset de senha invalida TODAS as sessões ativas
+
+**Pré-requisitos**:
+- Usuário com múltiplas sessões ativas
+- Token de reset obtido via `/auth/password-recovery`
+
+**Payload**:
+```json
+{
+  "token": "reset-token-here",
+  "new_password": "NewPassword@2025!Secure"
+}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "message": "Password reset successfully"
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] Senha atualizada no DB (hashed)
+- [x] TODAS as sessões revogadas (`is_active=false`)
+- [x] TODOS os refresh tokens revogados
+- [x] Usuário precisa fazer login novamente
+- [x] Evento de auditoria: "password_reset"
+
+---
+
+### UC-041: Refresh Token Rotation - Validar Rotação de Tokens
+**Endpoint**: `POST /api/v1/auth/refresh`  
+**Objetivo**: Validar que refresh token é rotacionado (token antigo invalidado)
+
+**Payload**:
+```json
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (NOVO)",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (NOVO)",
+  "token_type": "bearer"
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] Novo `access_token` diferente do anterior
+- [x] Novo `refresh_token` diferente do anterior
+- [x] Token antigo revogado (verificar `revoked_tokens` table)
+- [x] Tentativa de usar token antigo → 401 "Token revoked"
+
+**Teste de Segurança (Replay Attack)**:
+1. Fazer refresh → salvar novo token
+2. Tentar usar token ANTIGO novamente
+3. Resultado: 401 "Token revoked"
+
+---
+
+### UC-042: Rate Limiting - Validar Bloqueio de Brute Force
+**Endpoint**: `POST /api/v1/auth/token` (Login)  
+**Objetivo**: Validar rate limiting em endpoint crítico
+
+**Cenário**: Tentar login 6 vezes com senha incorreta
+
+**Payloads**:
+```json
+// Tentativa 1-5 (permitidas)
+{
+  "username": "admin@clinicago.com.br",
+  "password": "SenhaErrada123"
+}
+
+// Tentativa 6 (bloqueada)
+{
+  "username": "admin@clinicago.com.br",
+  "password": "SenhaErrada456"
+}
+```
+
+**Resultados Esperados**:
+- Tentativas 1-5: 401 "Invalid credentials"
+- Tentativa 6: 429 "Too Many Requests"
+
+**Validações**:
+- [x] Rate limit: 5 tentativas / 15 minutos
+- [x] Contador armazenado no Redis (key: `rate_limit:login:{ip}`)
+- [x] Header `Retry-After` presente no 429
+- [x] Após 15min, contador reseta automaticamente (TTL do Redis)
+
+**Outros Endpoints com Rate Limiting**:
+- `/auth/refresh`: 10 tentativas / 1 minuto
+- `/auth/password-recovery`: 3 tentativas / 1 hora
+- `/auth/email/resend`: 3 tentativas / 1 hora
+
+---
+
+### UC-043: AuthSessionResponse - Validar Dados de Sessão em /auth/me
+**Endpoint**: `GET /api/v1/auth/me`  
+**Objetivo**: Validar que retorna dados de AUTENTICAÇÃO, não perfil completo
+
+**Headers**:
+```
+Authorization: Bearer {{auth_token}}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "user_id": 1,
+  "email": "admin@clinicago.com.br",
+  "role": "admin",
+  "mfa_enabled": true,
+  "email_verified": true,
+  "last_login": "2025-12-26T15:30:00Z"
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] Retorna `AuthSessionResponse` (não `UserOut`)
+- [x] Campos presentes: `user_id`, `email`, `role`, `mfa_enabled`, `email_verified`
+- [x] NÃO retorna: `full_name`, `phone`, `created_at` (são dados de perfil)
+- [x] Para perfil completo, usar `GET /api/v1/users/me`
+
+---
+
+### UC-044: Block User - Admin Bloqueia Usuário e Invalida Sessões
+**Endpoint**: `POST /api/v1/users/{user_id}/block`  
+**Objetivo**: Admin bloqueia usuário e todas as sessões são invalidadas
+
+**Pré-requisitos**: 
+- Usuário admin autenticado
+- User target com sessões ativas
+
+**Headers**:
+```
+Authorization: Bearer {{admin_token}}
+```
+
+**Resultado Esperado**:
+```json
+{
+  "id": 2,
+  "email": "secretaria@clinicago.com.br",
+  "is_active": false,
+  "updated_at": "2025-12-26T16:00:00Z"
+}
+```
+
+**Validações**:
+- [x] Status code: 200
+- [x] User: `is_active=false`
+- [x] TODAS as sessões do user revogadas
+- [x] TODOS os tokens do user revogados
+- [x] Usuário bloqueado não consegue mais fazer login
+- [x] Evento de auditoria: "user_blocked"
+
+**Teste de Segurança**:
+- User comum tenta bloquear: 403 "Forbidden" (requer role ADMIN)
+
+---
+
+### UC-045: Audit Logs - Validar Eventos de Segurança
+**Endpoint**: `GET /api/v1/audit-logs`  
+**Objetivo**: Validar que todos os eventos de segurança são auditados
+
+**Headers**:
+```
+Authorization: Bearer {{admin_token}}
+```
+
+**Query Params**:
+```
+action=login,logout,mfa_enabled,password_reset
+limit=20
+```
+
+**Resultado Esperado**:
+```json
+[
+  {
+    "id": 1,
+    "user_id": 1,
+    "action": "login",
+    "ip_address": "192.168.1.100",
+    "user_agent": "Chrome/120.0.0",
+    "metadata": {
+      "mfa_used": true,
+      "device": "Windows 10"
+    },
+    "created_at": "2025-12-26T15:30:00Z"
+  },
+  {
+    "id": 2,
+    "user_id": 1,
+    "action": "mfa_enabled",
+    "ip_address": "192.168.1.100",
+    "metadata": {
+      "method": "totp"
+    },
+    "created_at": "2025-12-26T14:00:00Z"
+  }
+]
+```
+
+**Eventos que DEVEM ser auditados**:
+- [x] `login` (sucesso e falha)
+- [x] `logout`
+- [x] `mfa_enabled`, `mfa_disabled`
+- [x] `password_changed`, `password_reset`
+- [x] `email_verified`
+- [x] `session_revoked`
+- [x] `user_blocked`, `user_unblocked`
+- [x] `refresh_token_used`
+
+---
+
 ## 🎓 PRÓXIMOS PASSOS APÓS TESTES
 
 1. **Correção de Bugs**: Priorizar P0 e P1
