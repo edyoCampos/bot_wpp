@@ -5,7 +5,7 @@ Tag Controller - REST endpoints for tag management.
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from robbot.adapters.repositories.conversation_repository import ConversationRepository
@@ -27,8 +27,7 @@ class TagOut(BaseModel):
     color: str
     created_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CreateTagRequest(BaseModel):
