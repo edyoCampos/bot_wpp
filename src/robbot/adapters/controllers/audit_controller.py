@@ -5,7 +5,7 @@ Audit Log Controller - REST endpoints for audit logs.
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from robbot.core.security import get_current_user
@@ -30,8 +30,7 @@ class AuditLogOut(BaseModel):
     ip_address: Optional[str]
     created_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ===== ENDPOINTS =====
