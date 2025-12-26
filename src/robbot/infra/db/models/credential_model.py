@@ -1,11 +1,7 @@
-"""CredentialModel ORM for user authentication credentials.
+"""Model ORM para credenciais de autenticação de usuários.
 
-This model is part of FASE 0 - Preparação.
-It separates authentication credentials from user profile data,
-following the Security Separation Principle.
-
-Author: Sistema de Auditoria de Segurança
-Date: 2025-12-23
+Separa credenciais de autenticação dos dados de perfil do usuário,
+seguindo o Princípio de Separação de Responsabilidades de Segurança.
 """
 
 from datetime import datetime
@@ -18,23 +14,19 @@ from robbot.infra.db.base import Base
 
 
 class CredentialModel(Base):
-    """User authentication credentials (separated from user profile).
+    """Credenciais de autenticação do usuário (separadas do perfil).
 
-    This table contains all authentication-related data, completely
-    separated from user profile information.
+    Esta tabela contém todos os dados relacionados à autenticação,
+    completamente separados das informações de perfil do usuário.
 
-    Rationale:
-    - User is a domain entity (business concern)
-    - Credential is a security entity (infrastructure concern)
-    - This separation allows:
-      * User queries without exposing credentials
-      * Support for multiple auth methods (SSO, OAuth, magic links)
-      * Granular audit of password changes
-      * Improved performance (user queries don't join credentials)
-
-    Migration Note:
-    This model coexists with UserModel.hashed_password during FASE 0.
-    Data migration happens in FASE 1.
+    Justificativa:
+    - User é uma entidade de domínio (preocupação de negócio)
+    - Credential é uma entidade de segurança (preocupação de infraestrutura)
+    - Esta separação permite:
+      * Consultas de usuário sem expor credenciais
+      * Suporte para múltiplos métodos de auth (SSO, OAuth, magic links)
+      * Auditoria granular de mudanças de senha
+      * Melhor performance (consultas de user não fazem join com credentials)
     """
 
     __tablename__ = "credentials"
@@ -51,7 +43,7 @@ class CredentialModel(Base):
     hashed_password = Column(String(255), nullable=False)
     password_changed_at = Column(DateTime(timezone=True), nullable=True)
 
-    # Email Verification (FASE 4)
+    # Email Verification
     email_verified = Column(Boolean, default=False, nullable=False)
     email_verification_token = Column(String(255), nullable=True)
     email_verification_sent_at = Column(DateTime(timezone=True), nullable=True)
@@ -61,7 +53,7 @@ class CredentialModel(Base):
     reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     reset_token_used = Column(Boolean, default=False)
 
-    # MFA (Multi-Factor Authentication) - FASE 5
+    # MFA (Multi-Factor Authentication)
     mfa_enabled = Column(Boolean, default=False, nullable=False)
     mfa_secret = Column(String(255), nullable=True)  # TOTP secret (encrypted)
     backup_codes = Column(Text, nullable=True)  # JSON array of hashed backup codes
