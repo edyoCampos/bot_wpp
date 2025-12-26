@@ -1,6 +1,6 @@
-"""FastAPI dependencies for authentication, authorization and database sessions.
+"""Dependências FastAPI para autenticação, autorização e sessões de banco de dados.
 
-FASE 0: Added rate limiter initialization.
+Inicializa rate limiter e fornece injeção de dependências para controllers.
 """
 
 from typing import Callable, Generator
