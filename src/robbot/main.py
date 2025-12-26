@@ -1,9 +1,10 @@
-"""FastAPI application factory and global exception handling.
+"""FastAPI application factory e tratamento global de exceções.
 
-FASE 0: Added rate limiter initialization on startup.
+Inicializa rate limiter no startup e configura middleware CORS.
 """
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,8 +26,22 @@ def create_app() -> FastAPI:
     configure_logging()
     settings = get_settings()
     
-    application = FastAPI(title="Robbot API", version="0.1.0")
-    
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Initialize services on application startup/shutdown."""
+        logger = logging.getLogger("robbot.startup")
+        logger.info("Initializing rate limiter...")
+        try:
+            initialize_rate_limiter()
+            logger.info("✓ Rate limiter initialized successfully")
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"✗ Failed to initialize rate limiter: {e}")
+            # Don't fail app startup, rate limiter will fail gracefully
+        yield
+        # (optional) shutdown hooks here
+
+    application = FastAPI(title="Robbot API", version="0.1.0", lifespan=lifespan)
+
     # Configure CORS middleware for HttpOnly cookies
     # IMPORTANT: allow_credentials=True is required for cookies to work
     application.add_middleware(
@@ -36,20 +51,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     application.include_router(api_router, prefix="/api/v1")
 
-    @application.on_event("startup")
-    async def startup_event():
-        """Initialize services on application startup."""
-        logger = logging.getLogger("robbot.startup")
-        logger.info("Initializing rate limiter...")
-        try:
-            initialize_rate_limiter()
-            logger.info("✓ Rate limiter initialized successfully")
-        except Exception as e:
-            logger.error(f"✗ Failed to initialize rate limiter: {e}")
-            # Don't fail app startup, rate limiter will fail gracefully
 
     @application.exception_handler(Exception)
     async def global_exception_handler(_request: Request, exc: Exception):
