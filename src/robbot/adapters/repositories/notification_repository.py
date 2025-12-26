@@ -2,6 +2,7 @@
 Notification Repository - Data access layer for notifications.
 """
 
+from datetime import UTC, datetime, timedelta
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -181,9 +182,7 @@ class NotificationRepository:
         Returns:
             Count of notifications deleted
         """
-        from datetime import datetime, timedelta
-        
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
         
         stmt = (
             select(NotificationModel)
