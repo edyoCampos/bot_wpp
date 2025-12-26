@@ -28,7 +28,7 @@ class UserModel(Base):
         foreign_keys="LeadModel.assigned_to_user_id"
     )
     
-    # FASE 0 - New relationships for Auth refactoring
+    # Relationships for authentication and credentials
     credential = relationship(
         "CredentialModel",
         back_populates="user",
