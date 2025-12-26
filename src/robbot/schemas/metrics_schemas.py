@@ -8,7 +8,7 @@ from datetime import datetime, date
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # =============================================================================
@@ -42,8 +42,8 @@ class DashboardSummaryResponse(BaseModel):
     period: PeriodSchema
     kpis: DashboardKPIsSchema
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "period": {"start": "2024-12-01", "end": "2024-12-31"},
                 "kpis": {
@@ -58,6 +58,7 @@ class DashboardSummaryResponse(BaseModel):
                 }
             }
         }
+    )
 
 
 # =============================================================================
@@ -98,8 +99,8 @@ class ConversionFunnelResponse(BaseModel):
     period: PeriodSchema
     funnel: Dict[str, List[FunnelStageSchema]] = Field(..., description="Stages do funil")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "period": {"start": "2024-12-01", "end": "2024-12-31"},
                 "funnel": {
@@ -122,6 +123,7 @@ class ConversionFunnelResponse(BaseModel):
                 }
             }
         }
+    )
 
 
 class TimeToConversionStatsSchema(BaseModel):
