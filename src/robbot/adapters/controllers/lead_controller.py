@@ -5,7 +5,7 @@ Lead Controller - REST endpoints for lead management.
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from robbot.core.security import get_current_user
@@ -30,8 +30,7 @@ class LeadOut(BaseModel):
     created_at: str
     updated_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LeadListOut(BaseModel):
