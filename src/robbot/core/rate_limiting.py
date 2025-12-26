@@ -1,10 +1,7 @@
-"""Rate limiting middleware and decorators for API endpoints.
+"""Middleware e decoradores de rate limiting para endpoints da API.
 
-This module is part of FASE 0 - Preparação.
-It provides Redis-based rate limiting to prevent brute force attacks and abuse.
-
-Author: Sistema de Auditoria de Segurança
-Date: 2025-12-23
+Implementa rate limiting baseado em Redis para prevenir ataques de força bruta e abuso.
+Suporta múltiplas estratégias de chave (IP, user_id, email).
 """
 
 import functools
@@ -14,6 +11,7 @@ from typing import Callable, Literal
 from fastapi import HTTPException, Request, status
 from redis import Redis
 
+import logging
 from robbot.config.settings import settings
 
 
@@ -95,8 +93,7 @@ class RateLimiter:
 
         except Exception as e:
             # If Redis fails, allow request (fail open)
-            # Log error in production
-            print(f"Rate limiter error: {e}")
+            logging.getLogger(__name__).exception("Rate limiter error: %s", e)
             return True, 0, 0
 
     def reset(self, identifier: str, endpoint: str, key_type: Literal["ip", "user", "email"] = "ip") -> None:
