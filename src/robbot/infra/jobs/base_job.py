@@ -6,7 +6,7 @@ import json
 import logging
 import time
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 from robbot.config.settings import settings
@@ -58,14 +58,14 @@ class BaseJob(ABC):
         self.job_id = job_id or self._generate_job_id()
         self.attempt = attempt
         self.metadata = metadata or {}
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(UTC)
         self.started_at: Optional[datetime] = None
         self.completed_at: Optional[datetime] = None
 
     @staticmethod
     def _generate_job_id() -> str:
         """Gerar ID único para o job."""
-        return f"{datetime.utcnow().timestamp()}"
+        return f"{datetime.now(UTC).timestamp()}"
 
     @abstractmethod
     def execute(self) -> Any:
@@ -93,7 +93,7 @@ class BaseJob(ABC):
         Returns:
             Resultado do execute() ou None se falhar
         """
-        self.started_at = datetime.utcnow()
+        self.started_at = datetime.now(UTC)
         
         try:
             logger.info(
@@ -103,7 +103,7 @@ class BaseJob(ABC):
             
             result = self.execute()
             
-            self.completed_at = datetime.utcnow()
+            self.completed_at = datetime.now(UTC)
             duration = (self.completed_at - self.started_at).total_seconds()
             
             logger.info(
