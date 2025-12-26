@@ -66,7 +66,7 @@ services:
   # WhatsApp API (Waha)
   # ---------------------------------------------------------------------------
   waha:
-    image: devlikeapro/waha:latest
+    image: devlikeapro/waha:chrome
     container_name: waha
     restart: unless-stopped
     
@@ -74,17 +74,24 @@ services:
       - .env
     
     environment:
-      WAHA_API_KEY: ${WAHA_API_KEY}
-      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME}
-      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
-      WHATSAPP_SWAGGER_USERNAME: ${WHATSAPP_SWAGGER_USERNAME}
-      WHATSAPP_SWAGGER_PASSWORD: ${WHATSAPP_SWAGGER_PASSWORD}
+      WAHA_API_KEY: ${WAHA_API_KEY:-your-secret-api-key}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD:-admin}
+      WHATSAPP_SWAGGER_USERNAME: ${WHATSAPP_SWAGGER_USERNAME:-admin}
+      WHATSAPP_SWAGGER_PASSWORD: ${WHATSAPP_SWAGGER_PASSWORD:-admin}
     
     ports:
       - "127.0.0.1:3000:3000"
     
     volumes:
       - waha_data:/app/.sessions
+    
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ping || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   # ---------------------------------------------------------------------------
   # Aplicação Principal (API)
@@ -113,6 +120,14 @@ services:
       # Redis Config
       REDIS_URL: redis://redis:6379/0
 
+      # SMTP (Maildev em desenvolvimento)
+      SMTP_HOST: ${SMTP_HOST:-maildev}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TLS: ${SMTP_TLS:-false}
+      SMTP_SENDER: ${SMTP_SENDER:-no-reply@example.local}
+
       # Recomendação profissional:
       # SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
 
@@ -126,6 +141,10 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      maildev:
+        condition: service_started
+      waha:
         condition: service_healthy
 
     healthcheck:
@@ -152,6 +171,12 @@ services:
       PYTHONPATH: /app/src
       DATABASE_URL: postgresql+psycopg2://dba:dba@db:5432/BotDB
       REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: ${SMTP_HOST:-maildev}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TLS: ${SMTP_TLS:-false}
+      SMTP_SENDER: ${SMTP_SENDER:-no-reply@example.local}
 
     volumes:
       - .:/app
@@ -161,7 +186,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      api:
+      waha:
         condition: service_healthy
 
     # Escalar workers conforme necessário:
@@ -178,6 +203,20 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Maildev (SMTP fake para desenvolvimento)
+  # ---------------------------------------------------------------------------
+  maildev:
+    image: maildev/maildev:latest
+    container_name: maildev
+    restart: unless-stopped
+    environment:
+      - MAILDEV_WEB_PORT=1080
+      - MAILDEV_SMTP_PORT=1025
+    ports:
+      - "127.0.0.1:1080:1080"  # UI web
+      - "127.0.0.1:1025:1025"  # SMTP
 
 volumes:
   db_data:
