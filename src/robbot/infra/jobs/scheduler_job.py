@@ -3,7 +3,7 @@ Job para agendamentos/tarefas futuras.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Callable, Optional
 
 from robbot.infra.jobs.base_job import BaseJob, JobRetryableError
@@ -44,7 +44,7 @@ class ScheduledJob(BaseJob):
         self.task_data = task_data
         
         # Validação
-        if scheduled_for < datetime.utcnow():
+        if scheduled_for < datetime.now(UTC):
             raise ValueError(f"Agendamento no passado: {scheduled_for}")
         
         self.metadata.update({
@@ -65,7 +65,7 @@ class ScheduledJob(BaseJob):
         )
         
         # Validar que não expirou
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         if now < self.scheduled_for:
             delay = (self.scheduled_for - now).total_seconds()
             logger.warning(
@@ -175,7 +175,7 @@ class CleanupJob(ScheduledJob):
             days_threshold: Número de dias para considerar "antigo"
         """
         super().__init__(
-            scheduled_for=datetime.utcnow() + timedelta(hours=1),
+            scheduled_for=datetime.now(UTC) + timedelta(hours=1),
             task_type="cleanup",
             task_data={
                 "cleanup_type": cleanup_type,
@@ -194,7 +194,7 @@ class CleanupJob(ScheduledJob):
             extra=self._log_context(),
         )
         
-        cutoff_date = datetime.utcnow() - timedelta(days=self.days_threshold)
+        cutoff_date = datetime.now(UTC) - timedelta(days=self.days_threshold)
         
         results = {
             "status": "completed",
@@ -225,7 +225,7 @@ class SyncJob(ScheduledJob):
     ):
         """Inicializar job de sync."""
         super().__init__(
-            scheduled_for=datetime.utcnow() + timedelta(minutes=30),
+            scheduled_for=datetime.now(UTC) + timedelta(minutes=30),
             task_type="sync",
             task_data={"sync_target": sync_target},
             **kwargs,
