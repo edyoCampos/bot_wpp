@@ -1,6 +1,9 @@
 # 📋 PLANO DE TESTES COMPLETO - Bot WhatsApp Clínica GO
 
 > **Objetivo**: Validar todos os casos de uso da aplicação de forma organizada e cronológica, desde autenticação até processamento completo de conversas.
+> 
+> **Total de Casos de Teste**: 59 (UC-001 a UC-059)
+> **Última Atualização**: 26/12/2025
 
 ---
 
@@ -16,6 +19,23 @@
 2. **Dados isolados**: Cada caso de uso usa dados específicos
 3. **Validação completa**: Status code, schema, regras de negócio
 4. **Documentação**: Registrar resultados esperados vs obtidos
+
+### 📑 Índice de Fases
+
+| Fase | Casos de Teste | Descrição |
+|------|----------------|-----------|
+| **FASE 1** | UC-001 a UC-005 | Infraestrutura e Autenticação |
+| **FASE 2** | UC-006 a UC-009 | Integração WAHA (WhatsApp) |
+| **FASE 3** | UC-010 a UC-015 | Playbooks (Mensagens Pré-Aprovadas) |
+| **FASE 4** | UC-016 a UC-020 | Mensagens e Mídia |
+| **FASE 5** | UC-021 a UC-025 | Conversas e Leads |
+| **FASE 6** | UC-026 a UC-030 | Gemini AI e Contexto |
+| **FASE 7** | UC-031 a UC-033 | Escalação para Humano |
+| **FASE 8** | UC-034 a UC-035 | Tags e Filtros |
+| **FASE 9** | UC-036 a UC-038 | Métricas e Analytics |
+| **FASE 10** | UC-039 a UC-040 | Gestão de Filas |
+| **FASE 11** | UC-041 a UC-044 | Testes de Robustez |
+| **FASE 12** | UC-045 a UC-059 | Segurança e Autenticação Avançada |
 
 ---
 
@@ -1613,6 +1633,8 @@ job_id: {{failed_job_id}}
 
 ---
 
+## 📚 FASE 11: TESTES DE ROBUSTEZ E EDGE CASES
+
 ### UC-044: Testar Contexto Longo (50+ Mensagens)
 **Objetivo**: Validar performance com histórico extenso
 
@@ -1622,7 +1644,7 @@ job_id: {{failed_job_id}}
 
 ---
 
-## 📊 CRITÉRIOS DE SUCESSO GERAL
+## 📚 FASE 12: SEGURANÇA E AUTENTICAÇÃO AVANÇADA
 
 ### Performance
 - [ ] API response time médio < 500ms (endpoints REST)
@@ -1724,12 +1746,23 @@ Quando encontrar um bug, documentar assim:
 
 ---
 
-## 🔐 FASE 7: SEGURANÇA E AUTENTICAÇÃO AVANÇADA
+## � CRITÉRIOS DE SUCESSO GERAL
+
+### Performance
+- [ ] API response time médio < 500ms (endpoints REST)
+- [ ] Processamento de webhook < 10s (end-to-end)
+- [ ] Latência Gemini AI < 3s (95º percentil)
+- [ ] Transcrição Faster-Whisper < 5s (áudio de 30s)
+- [ ] Análise BLIP-2 < 5s (imagem padrão)
+
+---
+
+## 🔐 FASE 12: SEGURANÇA E AUTENTICAÇÃO AVANÇADA
 
 > **Adicionado em:** 26/12/2025  
 > **Objetivo:** Validar todas as 12 correções de segurança implementadas (Fases 3-5)
 
-### UC-031: MFA Setup - Habilitar Autenticação de Dois Fatores
+### UC-045: MFA Setup - Habilitar Autenticação de Dois Fatores
 **Endpoint**: `POST /api/v1/auth/mfa/setup`  
 **Objetivo**: Habilitar MFA para um usuário e obter QR code + backup codes
 
@@ -1782,12 +1815,12 @@ Authorization: Bearer {{auth_token}}
 
 ---
 
-### UC-032: MFA Verify - Confirmar Habilitação do MFA
+### UC-046: MFA Verify - Confirmar Habilitação do MFA
 **Endpoint**: `POST /api/v1/auth/mfa/verify`  
 **Objetivo**: Verificar código TOTP e ativar MFA permanentemente
 
 **Pré-requisitos**: 
-- MFA setup executado (UC-031)
+- MFA setup executado (UC-045)
 - Código TOTP gerado no app autenticador
 
 **Headers**:
@@ -1822,12 +1855,12 @@ Authorization: Bearer {{auth_token}}
 
 ---
 
-### UC-033: MFA Login - Autenticação com Dois Fatores
+### UC-047: MFA Login - Autenticação com Dois Fatores
 **Endpoint**: `POST /api/v1/auth/mfa/login`  
 **Objetivo**: Completar login após credenciais corretas quando MFA está ativo
 
 **Pré-requisitos**: 
-- Usuário com MFA habilitado (UC-032)
+- Usuário com MFA habilitado (UC-046)
 - Login básico já realizado (`POST /auth/token`)
 
 **Payload**:
@@ -1860,7 +1893,7 @@ Authorization: Bearer {{auth_token}}
 
 ---
 
-### UC-034: MFA Disable - Desabilitar Autenticação de Dois Fatores
+### UC-048: MFA Disable - Desabilitar Autenticação de Dois Fatores
 **Endpoint**: `POST /api/v1/auth/mfa/disable`  
 **Objetivo**: Desabilitar MFA (requer senha + código TOTP)
 
@@ -1899,7 +1932,7 @@ Authorization: Bearer {{auth_token}}
 
 ---
 
-### UC-035: Sessions Management - Listar Sessões Ativas
+### UC-049: Sessions Management - Listar Sessões Ativas
 **Endpoint**: `GET /api/v1/auth/sessions`  
 **Objetivo**: Listar todas as sessões ativas do usuário atual
 
@@ -1942,7 +1975,7 @@ Authorization: Bearer {{auth_token}}
 
 ---
 
-### UC-036: Sessions Revoke - Revogar Sessão Específica
+### UC-050: Sessions Revoke - Revogar Sessão Específica
 **Endpoint**: `POST /api/v1/auth/sessions/{session_id}/revoke`  
 **Objetivo**: Fazer logout de um dispositivo específico
 
@@ -1971,7 +2004,7 @@ Status: 204 No Content
 
 ---
 
-### UC-037: Sessions Revoke All - Revogar Todas as Sessões
+### UC-051: Sessions Revoke All - Revogar Todas as Sessões
 **Endpoint**: `POST /api/v1/auth/sessions/revoke-all`  
 **Objetivo**: Fazer logout de TODOS os dispositivos (exceto atual)
 
@@ -2037,7 +2070,7 @@ token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-### UC-039: Email Resend - Reenviar Token de Verificação
+### UC-053: Email Resend - Reenviar Token de Verificação
 **Endpoint**: `POST /api/v1/auth/email/resend`  
 **Objetivo**: Reenviar email de verificação caso usuário não tenha recebido
 
@@ -2065,7 +2098,7 @@ Authorization: Bearer {{auth_token}}
 
 ---
 
-### UC-040: Password Reset - Reset Invalida Sessões
+### UC-054: Password Reset - Reset Invalida Sessões
 **Endpoint**: `POST /api/v1/auth/password-reset`  
 **Objetivo**: Validar que reset de senha invalida TODAS as sessões ativas
 
@@ -2098,7 +2131,7 @@ Authorization: Bearer {{auth_token}}
 
 ---
 
-### UC-041: Refresh Token Rotation - Validar Rotação de Tokens
+### UC-055: Refresh Token Rotation - Validar Rotação de Tokens
 **Endpoint**: `POST /api/v1/auth/refresh`  
 **Objetivo**: Validar que refresh token é rotacionado (token antigo invalidado)
 
@@ -2132,7 +2165,7 @@ Authorization: Bearer {{auth_token}}
 
 ---
 
-### UC-042: Rate Limiting - Validar Bloqueio de Brute Force
+### UC-056: Rate Limiting - Validar Bloqueio de Brute Force
 **Endpoint**: `POST /api/v1/auth/token` (Login)  
 **Objetivo**: Validar rate limiting em endpoint crítico
 
@@ -2170,7 +2203,7 @@ Authorization: Bearer {{auth_token}}
 
 ---
 
-### UC-043: AuthSessionResponse - Validar Dados de Sessão em /auth/me
+### UC-057: AuthSessionResponse - Validar Dados de Sessão em /auth/me
 **Endpoint**: `GET /api/v1/auth/me`  
 **Objetivo**: Validar que retorna dados de AUTENTICAÇÃO, não perfil completo
 
@@ -2200,7 +2233,7 @@ Authorization: Bearer {{auth_token}}
 
 ---
 
-### UC-044: Block User - Admin Bloqueia Usuário e Invalida Sessões
+### UC-058: Block User - Admin Bloqueia Usuário e Invalida Sessões
 **Endpoint**: `POST /api/v1/users/{user_id}/block`  
 **Objetivo**: Admin bloqueia usuário e todas as sessões são invalidadas
 
@@ -2236,7 +2269,7 @@ Authorization: Bearer {{admin_token}}
 
 ---
 
-### UC-045: Audit Logs - Validar Eventos de Segurança
+### UC-059: Audit Logs - Validar Eventos de Segurança
 **Endpoint**: `GET /api/v1/audit-logs`  
 **Objetivo**: Validar que todos os eventos de segurança são auditados
 
