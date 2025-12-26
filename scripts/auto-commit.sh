@@ -151,8 +151,8 @@ infer_type_and_message() {
   local status="$1" f="$2" oldpath="${3:-}"
   local base; base=$(basename -- "$f")
 
-  # Deleção
-  if [[ "${status:0:1}" == "D" ]]; then
+  # Deleção (staged "D " ou unstaged " D")
+  if [[ "${status:0:1}" == "D" || "${status:1:1}" == "D" ]]; then
     printf '%s\n' "chore|remove ${base}"
     return
   fi
