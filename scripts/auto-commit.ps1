@@ -147,7 +147,7 @@ for ($i = 0; $i -lt $entries.Count; $i++) {
 # Inferir tipo/mensagem
 function Infer-TypeAndMessage($status, $f, $oldpath) {
     $base = [System.IO.Path]::GetFileName($f)
-    if ($status.Substring(0,1) -eq 'D') {
+    if ($status.Substring(0,1) -eq 'D' -or $status.Substring(1,1) -eq 'D') {
         return "chore|remove $base"
     }
     if (($status.Substring(0,1) -eq 'R') -and (-not [string]::IsNullOrWhiteSpace($oldpath))) {
