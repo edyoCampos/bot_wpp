@@ -1,10 +1,6 @@
-"""AuthSessionModel ORM for user authentication sessions.
+"""Model ORM para sessões de autenticação de usuários.
 
-This model is part of FASE 0 - Preparação.
-It enables session management, allowing users to view and revoke active sessions.
-
-Author: Sistema de Auditoria de Segurança
-Date: 2025-12-23
+Permite gerenciamento de sessões, permitindo aos usuários visualizar e revogar sessões ativas.
 """
 
 from datetime import datetime
@@ -17,22 +13,20 @@ from robbot.infra.db.base import Base
 
 
 class AuthSessionModel(Base):
-    """User authentication sessions (JWT + metadata).
+    """Sessões de autenticação de usuário (JWT + metadados).
 
-    This table stores metadata about active user sessions, enabling:
-    - List all active sessions (web, mobile, etc.)
-    - Revoke specific sessions (logout from specific device)
-    - Revoke all sessions (logout from all devices)
-    - Track device fingerprint (IP + User-Agent)
-    - Detect suspicious activity (new location, new device)
+    Esta tabela armazena metadados sobre sessões ativas de usuários, permitindo:
+    - Listar todas as sessões ativas (web, mobile, etc.)
+    - Revogar sessões específicas (logout de dispositivo específico)
+    - Revogar todas as sessões (logout de todos os dispositivos)
+    - Rastrear fingerprint de dispositivo (IP + User-Agent)
+    - Detectar atividade suspeita (nova localização, novo dispositivo)
 
-    Note:
-    - Sessions are created on login
-    - Sessions are updated on token refresh (last_used_at)
-    - Sessions are marked revoked on logout or explicit revocation
-    - Expired sessions can be cleaned up by a background job
-
-    Implementation in FASE 3.
+    Observações:
+    - Sessões são criadas no login
+    - Sessões são atualizadas no refresh de token (last_used_at)
+    - Sessões são marcadas como revogadas no logout ou revogação explícita
+    - Sessões expiradas podem ser limpas por um job em background
     """
 
     __tablename__ = "auth_sessions"
