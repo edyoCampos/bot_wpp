@@ -25,9 +25,7 @@ class UserRepository:
         return self.db.get(UserModel, user_id)
 
     def create_user(self, user_in: UserCreate, hashed_password: str) -> UserModel:
-        """
-        Create a new user. Expect hashed_password to be provided by service layer.
-        """
+        """Create a new user including legacy `hashed_password` for backward compatibility."""
         user = UserModel(
             email=user_in.email,
             full_name=user_in.full_name,
