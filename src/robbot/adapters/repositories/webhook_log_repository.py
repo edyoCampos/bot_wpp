@@ -1,6 +1,6 @@
 """Repository for webhook log persistence."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -95,7 +95,7 @@ class WebhookLogRepository:
         Returns:
             Number of deleted logs
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
         stmt = (
             select(WebhookLog)
             .where(WebhookLog.processed == True)
