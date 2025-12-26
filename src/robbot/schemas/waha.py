@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ============================================================================
@@ -213,8 +213,7 @@ class SendButtonsRequest(BaseModel):
     buttons: list[ButtonOption] = Field(..., min_length=1, max_length=10)
     footer: str | None = Field(None, max_length=60)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ListRow(BaseModel):
@@ -251,8 +250,7 @@ class SendListRequest(BaseModel):
     sections: list[ListSection] = Field(...,
                                         min_length=1, description="Menu sections")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SendPollRequest(BaseModel):
@@ -332,8 +330,7 @@ class SendButtonsReplyRequest(BaseModel):
     selected_button_id: str = Field(..., alias="selectedButtonID",
                                     description="Button ID that was selected")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SendStarRequest(BaseModel):
@@ -442,8 +439,7 @@ class SendEventRequest(BaseModel):
     reply_to: str | None = Field(
         None, description="Message ID to reply to (optional)")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 # ============================================================================
@@ -485,8 +481,7 @@ class MessageData(BaseModel):
     reply_to: str | None = Field(
         None, alias="replyTo", description="Message being replied to")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class GetMessagesResponse(BaseModel):
