@@ -1,7 +1,7 @@
 """Repository for conversation persistence and retrieval operations."""
 
 from typing import Optional
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -72,7 +72,7 @@ class ConversationRepository:
             phone_number=phone_number,
             name=name,
             status=status,
-            last_message_at=datetime.utcnow(),
+            last_message_at=datetime.now(UTC),
         )
         self.db.add(conversation)
         self.db.commit()
@@ -104,7 +104,7 @@ class ConversationRepository:
             if hasattr(conversation, key):
                 setattr(conversation, key, value)
 
-        conversation.updated_at = datetime.utcnow()
+        conversation.updated_at = datetime.now(UTC)
         self.db.commit()
         self.db.refresh(conversation)
         return conversation
@@ -139,7 +139,7 @@ class ConversationRepository:
         """
         return self.update(
             conversation_id,
-            {"last_message_at": datetime.utcnow()}
+            {"last_message_at": datetime.now(UTC)}
         )
 
     def get_active(self, limit: int = 100) -> list[ConversationModel]:
