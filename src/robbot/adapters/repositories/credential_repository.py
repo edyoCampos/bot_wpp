@@ -1,13 +1,9 @@
-"""Repository for credential persistence and retrieval operations.
+"""Repositório para operações de persistência e recuperação de credenciais.
 
-This repository is part of FASE 0 - Preparação.
-It handles all credential-related database operations.
-
-Author: Sistema de Auditoria de Segurança
-Date: 2025-12-23
+Gerencia todas as operações de banco de dados relacionadas a credenciais.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -62,7 +58,7 @@ class CredentialRepository:
             Updated credential model
         """
         credential.hashed_password = new_hashed_password
-        credential.password_changed_at = datetime.utcnow()
+        credential.password_changed_at = datetime.now(UTC)
         self.db.add(credential)
         self.db.commit()
         self.db.refresh(credential)
@@ -115,12 +111,14 @@ class CredentialRepository:
         Returns:
             Credential model if found, None otherwise
         """
+        # Use naive datetime for SQLAlchemy comparison since DB stores naive timestamps
+        now_naive = datetime.now(UTC).replace(tzinfo=None)
         return (
             self.db.query(CredentialModel)
             .filter(
                 CredentialModel.reset_token == token,
                 CredentialModel.reset_token_used == False,
-                CredentialModel.reset_token_expires_at > datetime.utcnow(),
+                CredentialModel.reset_token_expires_at > now_naive,
             )
             .first()
         )
@@ -175,6 +173,40 @@ class CredentialRepository:
         credential.mfa_enabled = False
         credential.mfa_secret = None
         credential.backup_codes = None
+        self.db.add(credential)
+        self.db.commit()
+        self.db.refresh(credential)
+        return credential
+
+    # ========================================================================
+    # EMAIL VERIFICATION
+    # ========================================================================
+
+    def get_by_verification_token(self, token: str) -> Optional[CredentialModel]:
+        """Get credential by email verification token.
+
+        Args:
+            token: Email verification token to search for
+
+        Returns:
+            Credential model if found, None otherwise
+        """
+        return (
+            self.db.query(CredentialModel)
+            .filter(CredentialModel.email_verification_token == token)
+            .first()
+        )
+
+    def mark_email_verified(self, credential: CredentialModel) -> CredentialModel:
+        """Mark email as verified.
+
+        Args:
+            credential: Credential model to update
+
+        Returns:
+            Updated credential model
+        """
+        credential.email_verified = True
         self.db.add(credential)
         self.db.commit()
         self.db.refresh(credential)
