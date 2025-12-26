@@ -38,10 +38,14 @@ class UserInDB(UserOut):
 
 
 class UserUpdate(BaseModel):
-    """Schema for updating user profile fields."""
+    """Schema para atualização de campos de perfil do usuário.
+    
+    Nota: is_active é gerenciado via endpoints de bloqueio:
+    - POST /users/{id}/block
+    - POST /users/{id}/unblock
+    """
 
     full_name: str | None = None
-    is_active: bool | None = None
 
 
 class UserList(BaseModel):
