@@ -28,5 +28,5 @@ class HealthRepository:
         return bool(client.ping())
 
     def check_redis_connection(self) -> bool:
-        """Alias semântico para compatibilidade com backlog/serviço."""
+        """Alias de conveniência para verificação de saúde do Redis."""
         return self.ping_redis()
