@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app/src
 WORKDIR /app
 
-# Instala dependências do sistema, incluindo postgresql-client (pg_isready) e curl
+# Instala dependências do sistema, incluindo postgresql-client (pg_isready), curl e dos2unix
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        build-essential \
@@ -16,6 +16,7 @@ RUN apt-get update \
        postgresql-client \
        curl \
        ca-certificates \
+       dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
 # Atualiza pip/setuptools/wheel
@@ -30,10 +31,11 @@ RUN useradd --create-home --shell /bin/bash appuser
 # Copia todo o projeto para a imagem
 COPY . /app
 
-# Copia scripts utilitários para /usr/local/bin, garante permissão executável e ajusta dono
+# Copia scripts utilitários para /usr/local/bin, garante permissão executável e ajusta dono, normalizando EOL
 COPY scripts/wait-for-db.sh /usr/local/bin/wait-for-db.sh
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/wait-for-db.sh /usr/local/bin/entrypoint.sh \
+RUN dos2unix /usr/local/bin/wait-for-db.sh /usr/local/bin/entrypoint.sh \
+    && chmod +x /usr/local/bin/wait-for-db.sh /usr/local/bin/entrypoint.sh \
     && chown -R appuser:appuser /app /usr/local/bin/wait-for-db.sh /usr/local/bin/entrypoint.sh || true
 
 # Instala dependências do projeto via pip usando pyproject.toml
