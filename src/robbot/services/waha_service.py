@@ -4,7 +4,7 @@ WAHA unified service for session management and message sending.
 Consolidates session operations + message sending with rate limiting.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from robbot.adapters.external.waha_client import WAHAClient
 from robbot.adapters.repositories.session_repository import SessionRepository
@@ -293,7 +293,7 @@ class WAHAService:
 
         return MessageSentResponse(
             message_id=response.get("id", ""),
-            timestamp=response.get("timestamp", int(datetime.utcnow().timestamp())),
+            timestamp=response.get("timestamp", int(datetime.now(UTC).timestamp())),
             chat_id=data.chat_id,
         )
 
@@ -316,7 +316,7 @@ class WAHAService:
 
         return MessageSentResponse(
             message_id=response.get("id", ""),
-            timestamp=response.get("timestamp", int(datetime.utcnow().timestamp())),
+            timestamp=response.get("timestamp", int(datetime.now(UTC).timestamp())),
             chat_id=data.chat_id,
         )
 
@@ -339,7 +339,7 @@ class WAHAService:
 
         return MessageSentResponse(
             message_id=response.get("id", ""),
-            timestamp=response.get("timestamp", int(datetime.utcnow().timestamp())),
+            timestamp=response.get("timestamp", int(datetime.now(UTC).timestamp())),
             chat_id=data.chat_id,
         )
 
@@ -362,7 +362,7 @@ class WAHAService:
 
         return MessageSentResponse(
             message_id=response.get("id", ""),
-            timestamp=response.get("timestamp", int(datetime.utcnow().timestamp())),
+            timestamp=response.get("timestamp", int(datetime.now(UTC).timestamp())),
             chat_id=data.chat_id,
         )
 
