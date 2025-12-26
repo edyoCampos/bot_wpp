@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Dict
 
 from sqlalchemy.orm import Session
@@ -28,7 +28,7 @@ class HealthService:
         Checa integrações essenciais (DB, Redis, WAHA, Queue) e retorna um resumo.
         Se houver falha crítica e alerts estiver configurado, persiste alerta.
         """
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         db_ok = False
         db_error: str | None = None
         redis_ok = False
