@@ -5,7 +5,7 @@ Este módulo expõe endpoints REST para gerenciar notificações in-app.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from robbot.api.v1.dependencies import get_db, get_current_user
@@ -28,8 +28,7 @@ class NotificationOut(BaseModel):
     read: bool
     created_at: str
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MarkReadRequest(BaseModel):
