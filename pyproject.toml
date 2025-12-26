@@ -33,6 +33,7 @@ dependencies = [
     "torchvision>=0.24.1",
     "transformers>=4.57.3",
     "uvicorn[standard]>=0.38.0",
+    "pyotp>=2.9.0",
 ]
 
 [dependency-groups]
