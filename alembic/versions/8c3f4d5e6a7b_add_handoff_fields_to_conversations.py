@@ -21,10 +21,10 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     # Adicionar novos campos para handoff bot→humano
-    op.add_column('conversations', sa.Column('assigned_to', sa.String(36), nullable=True))
+    op.add_column('conversations', sa.Column('assigned_to', sa.Integer(), nullable=True))
     op.add_column('conversations', sa.Column('assigned_at', sa.DateTime(timezone=True), nullable=True))
     op.add_column('conversations', sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True))
-    op.add_column('conversations', sa.Column('escalation_reason', sa.String(255), nullable=True))
+    # escalation_reason já existe na tabela conversations (criada em 5d3e9f1a2c4b)
     
     # Criar foreign key para assigned_to
     op.create_foreign_key(
@@ -44,7 +44,7 @@ def downgrade() -> None:
     op.drop_index('idx_conversations_status', 'conversations')
     op.drop_index('idx_conversations_assigned_to', 'conversations')
     op.drop_constraint('fk_conversations_assigned_to_users', 'conversations', type_='foreignkey')
-    op.drop_column('conversations', 'escalation_reason')
+    # escalation_reason não foi adicionado nesta migração
     op.drop_column('conversations', 'completed_at')
     op.drop_column('conversations', 'assigned_at')
     op.drop_column('conversations', 'assigned_to')
