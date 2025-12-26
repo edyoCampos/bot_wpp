@@ -1,11 +1,8 @@
-"""Authentication schema definitions for API requests and responses.
+"""Definições de schemas de autenticação para requests e responses da API.
 
-This module contains ALL authentication-related DTOs, completely separated from user profile schemas.
-This separation follows the principle of separating security concerns from domain concerns.
-
-Author: Sistema de Auditoria de Segurança
-Date: 2025-12-23
-Phase: FASE 0 - Preparação
+Este módulo contém TODOS os DTOs relacionados à autenticação, completamente separados dos
+schemas de perfil de usuário. Esta separação segue o princípio de separar preocupações de
+segurança de preocupações de domínio.
 """
 
 from datetime import datetime
@@ -55,13 +52,18 @@ class LoginRequest(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    """Schema for successful login response."""
+    """Schema for successful login response.
+    
+    If mfa_required=True, client must call POST /auth/mfa/login with code.
+    The tokens provided are temporary and have limited scope.
+    """
 
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int = 900  # 15 minutes in seconds
-    mfa_required: bool = False  # For future MFA support
+    mfa_required: bool = False  # True if user has MFA enabled
+    temporary: bool = False  # True if tokens are temporary (awaiting MFA)
 
 
 class LogoutRequest(BaseModel):
@@ -160,7 +162,7 @@ class ResendEmailRequest(BaseModel):
 # ============================================================================
 
 
-class SessionResponse(BaseModel):
+class SessionOut(BaseModel):
     """Schema for session information."""
 
     id: int
@@ -172,6 +174,7 @@ class SessionResponse(BaseModel):
     last_used_at: datetime
     expires_at: datetime
     is_current: bool = False  # True if this is the requesting session
+    is_revoked: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -179,7 +182,7 @@ class SessionResponse(BaseModel):
 class SessionListResponse(BaseModel):
     """Schema for listing user sessions."""
 
-    sessions: list[SessionResponse]
+    sessions: list[SessionOut]
     total: int
 
 
@@ -187,6 +190,7 @@ class RevokeSessionRequest(BaseModel):
     """Schema for revoking a specific session."""
 
     session_id: int
+    reason: str | None = "manual_revocation"
 
 
 # ============================================================================
@@ -263,6 +267,49 @@ class BackupCodesResponse(BaseModel):
 
 
 # ============================================================================
+# EMAIL VERIFICATION
+# ============================================================================
+
+
+class EmailVerificationRequest(BaseModel):
+    """Schema para validação de token de verificação de email.
+    
+    Usado por: GET /auth/email/verify?token=...
+    """
+
+    token: str = Field(..., min_length=32, max_length=255)
+
+
+class EmailResendRequest(BaseModel):
+    """Schema para reenvio de email de verificação.
+    
+    Usado por: POST /auth/email/resend
+    """
+
+    email: EmailStr
+
+
+class EmailVerificationResponse(BaseModel):
+    """Schema de resposta após verificação bem-sucedida de email.
+    
+    Retornado após verificação bem-sucedida do email.
+    """
+
+    message: str
+    email_verified: bool
+    user_id: int
+
+
+# ============================================================================
+# SESSION MANAGEMENT
+# ============================================================================
+
+
+# Classes SessionOut, SessionListResponse e RevokeSessionRequest foram movidas para cima
+# para evitar duplicação (linhas 184-195)
+
+
+# ============================================================================
 # AUDIT & SECURITY
 # ============================================================================
 
@@ -286,3 +333,30 @@ class AuditLogListResponse(BaseModel):
 
     logs: list[AuditLogEntry]
     total: int
+
+
+# ============================================================================
+# MFA LOGIN
+# ============================================================================
+
+
+class MfaLoginRequest(BaseModel):
+    """Schema for MFA verification during login.
+    
+    User provides the temporary token received from login + TOTP/backup code.
+    """
+
+    temporary_token: str = Field(..., description="Temporary access token from login response")
+    code: str = Field(..., min_length=6, max_length=6, description="TOTP code or backup code")
+
+
+class MfaLoginResponse(BaseModel):
+    """Schema for successful MFA login response.
+    
+    Returns final access and refresh tokens after MFA verification.
+    """
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = 900  # 15 minutes in seconds
