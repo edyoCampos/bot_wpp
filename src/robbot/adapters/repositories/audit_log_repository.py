@@ -35,6 +35,22 @@ class AuditLogRepository(BaseRepository[AuditLog]):
     def __init__(self, session: Session):
         super().__init__(session, table=audit_logs_table, entity_class=AuditLog)
 
+    def create(self, obj: AuditLog) -> AuditLog:
+        """Insert a new audit log using table insert (no ORM mapping)."""
+        self.session.execute(
+            self.table.insert().values(
+                user_id=obj.user_id,
+                action=obj.action,
+                entity_type=obj.entity_type,
+                entity_id=obj.entity_id,
+                old_value=obj.old_value,
+                new_value=obj.new_value,
+                ip_address=obj.ip_address,
+            )
+        )
+        self.session.commit()
+        return obj
+
     def get_by_user(self, user_id: int, limit: int = 100) -> List[AuditLog]:
         """Get audit logs by user."""
         result = self.session.execute(
