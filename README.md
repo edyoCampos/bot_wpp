@@ -143,7 +143,6 @@ git pull origin grupotic
 # 6. Verificar resultado
 git branch -a
 ```
-
 </td>
 <td width="50%">
 
