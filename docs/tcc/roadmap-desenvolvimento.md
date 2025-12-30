@@ -35,6 +35,822 @@
 
 ---
 
+## 📊 Status Atual do Projeto (Atualizado: 30/12/2025)
+
+### ⚠️ **AUDITORIA DE CÓDIGO - DUPLICAÇÕES IDENTIFICADAS**
+
+**STATUS GERAL:** ⚠️ **DÍVIDA TÉCNICA IDENTIFICADA - LIMPEZA NECESSÁRIA**  
+**PROGRESSO REFATORAÇÃO:** Fase de Análise Completa  
+**ARQUIVOS DUPLICADOS:** 4 arquivos identificados para limpeza
+
+---
+
+## 🔴 **AUDITORIA ARQUITETURAL: ELIMINAÇÃO DE DUPLICAÇÕES DE CÓDIGO**
+
+### 📋 **SUMÁRIO EXECUTIVO**
+
+**Data da Auditoria:** 30/12/2025  
+**Escopo:** Análise completa do projeto para identificar código duplicado, arquivos mortos e inconsistências arquiteturais  
+**Resultado:** 4 arquivos com duplicação/problemas identificados  
+**Impacto:** Médio - Não afeta funcionalidade mas gera confusão e risco de bugs futuros  
+**Prioridade:** Alta - Dívida técnica deve ser eliminada antes de novas features
+
+---
+
+### 🎯 **DUPLICAÇÕES IDENTIFICADAS**
+
+#### 1. ⚠️ **DUPLICAÇÃO CRÍTICA: API Dependencies**
+
+**Problema:** Dois arquivos implementando a mesma funcionalidade de autenticação/dependências
+
+**Arquivos:**
+- ✅ `src/robbot/api/v1/dependencies.py` - **EM USO** (15 referências no projeto)
+- ❌ `src/robbot/api/v1/deps.py` - **CÓDIGO MORTO** (0 referências)
+
+**Análise Técnica:**
+
+| Aspecto | dependencies.py (CORRETO) | deps.py (OBSOLETO) |
+|---------|---------------------------|---------------------|
+| **Autenticação** | Cookies HttpOnly (seguro) | Authorization header (antigo) |
+| **Rate Limiter** | ✅ Implementado (`initialize_rate_limiter()`) | ❌ Ausente |
+| **Autorização** | ✅ Tem `require_role()` para RBAC | ❌ Ausente |
+| **DB Session** | Usa `SessionLocal` direto de base.py | Usa `get_db()` wrapper de session.py |
+| **Referências** | 15 arquivos importam | 0 arquivos importam |
+| **Última atualização** | Recente (MFA + sessions) | Antiga |
+
+**Diferenças de Implementação:**
+
+`dependencies.py` (CORRETO):
+```python
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> UserModel:
+    """Validates token from HttpOnly cookie and returns current user from DB."""
+    token = request.cookies.get("access_token")  # Cookies (seguro)
+    # ... validação completa com mensagens detalhadas
+```
+
+`deps.py` (OBSOLETO):
+```python
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db_session)) -> UserModel:
+    """Valida token JWT e retorna usuário atual do banco."""
+    # ... usa Authorization header (antigo padrão)
+```
+
+**Impacto:**
+- ⚠️ Confusão para desenvolvedores (qual usar?)
+- ⚠️ Risco de usar versão antiga em novos endpoints
+- ⚠️ Manutenção duplicada (bugs corrigidos em um mas não no outro)
+
+**Ação Necessária:** DELETAR `deps.py`
+
+---
+
+#### 2. ⚠️ **DUPLICAÇÃO COM TYPO: Core Exceptions**
+
+**Problema:** Três arquivos de exceptions, sendo um com typo no nome
+
+**Arquivos:**
+- ✅ `src/robbot/core/exceptions.py` - **EM USO** (20 referências - versão simples)
+- ✅ `src/robbot/core/custom_exceptions.py` - **EM USO** (7 referências - versão completa)
+- ❌ `src/robbot/core/exeptions.py` - **CÓDIGO MORTO** (0 referências, typo: "exeptions")
+
+**Análise Técnica:**
+
+`exceptions.py` (Versão Simples - 20 usos):
+```python
+class AuthException(Exception):
+    """Raised for authentication/authorization related errors."""
+
+class NotFoundException(Exception):
+    """Raised when a requested resource is not found."""
+
+class ExternalServiceError(Exception):
+    """Raised when an external service (e.g., WAHA API) returns an error."""
+
+class BusinessRuleError(Exception):
+    """Raised when a business rule is violated."""
+
+class DatabaseError(Exception):
+    """Raised when a database operation fails."""
+```
+
+`custom_exceptions.py` (Versão Completa - 7 usos):
+```python
+class RobbotException(Exception):
+    """Base exception para todas exceções do sistema."""
+
+class AuthException(RobbotException):  # Herda da base
+class NotFoundException(RobbotException)
+class BusinessRuleError(RobbotException)
+class DatabaseError(RobbotException)
+
+# Exceções especializadas (não existem em exceptions.py):
+class ExternalServiceError(RobbotException):
+    def __init__(self, service_name: str, message: str, original_error: Optional[Exception] = None):
+        self.service_name = service_name
+        self.original_error = original_error
+        super().__init__(f"{service_name}: {message}")
+
+class QueueError(RobbotException)
+class LLMError(ExternalServiceError)  # Especialização para LLMs
+class WAHAError(ExternalServiceError)  # Especialização para WAHA
+class VectorDBError(ExternalServiceError)  # Especialização para ChromaDB
+class ValidationError(RobbotException)
+class ConfigurationError(RobbotException)
+class JobError(RobbotException)
+```
+
+`exeptions.py` (Código duplicado do exceptions.py, mas com typo no nome):
+```python
+class AuthException(Exception):  # Exatamente igual ao exceptions.py
+class NotFoundException(Exception)
+class ExternalServiceError(Exception)
+```
+
+**Distribuição de Uso:**
+
+| Módulo | exceptions.py | custom_exceptions.py |
+|--------|---------------|----------------------|
+| Controllers | ✅ (10 refs) | ❌ |
+| Core Services | ✅ (5 refs) | ❌ |
+| Tests | ✅ (5 refs) | ❌ |
+| Workers/Jobs | ❌ | ✅ (3 refs) |
+| Queue System | ❌ | ✅ (2 refs) |
+| Advanced Services | ❌ | ✅ (2 refs) |
+
+**Vantagens de `custom_exceptions.py`:**
+1. ✅ Hierarquia de exceções (RobbotException como base)
+2. ✅ Contexto adicional (service_name, original_error)
+3. ✅ Exceções especializadas (LLMError, WAHAError, QueueError, JobError)
+4. ✅ Melhor rastreabilidade em logs
+5. ✅ Type safety melhorado
+
+**Impacto:**
+- ⚠️ Inconsistência: Diferentes partes do código usam diferentes exceptions
+- ⚠️ Falta de contexto: `exceptions.py` não armazena erro original
+- ⚠️ Arquivo com typo pode confundir IDE/autocomplete
+
+**Ação Necessária:** 
+1. **IMEDIATO:** DELETAR `exeptions.py` (typo)
+2. **GRADUAL:** Migrar todos os usos de `exceptions.py` → `custom_exceptions.py`
+3. **FINAL:** Deletar `exceptions.py` quando chegar a 0 referências
+
+---
+
+#### 3. ⚠️ **INCONSISTÊNCIA: Database Session Management**
+
+**Problema:** Importações inconsistentes de SessionLocal e get_db() em diferentes partes do código
+
+**Arquivos Envolvidos:**
+- `src/robbot/infra/db/base.py` - Define `SessionLocal`, `Base`, `engine`
+- `src/robbot/infra/db/session.py` - Define helpers `get_db()`, `get_sync_session()`
+- `src/robbot/api/v1/dependencies.py` - Reimplementa `get_db()` localmente
+
+**Análise:**
+
+`base.py` (Configuração base):
+```python
+engine = create_engine(settings.DATABASE_URL, echo=False, future=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+```
+
+`session.py` (Helpers):
+```python
+from robbot.infra.db.base import SessionLocal
+
+def get_sync_session() -> Generator[Session, None, None]:
+    """Context manager para sessões síncronas."""
+    session = SessionLocal()
+    try:
+        yield session
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+def get_db() -> Generator[Session, None, None]:
+    """Dependency injection para FastAPI."""
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()  # Auto-commit no sucesso
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+```
+
+`dependencies.py` (Reimplementação):
+```python
+from robbot.infra.db.base import SessionLocal  # Import direto
+
+def get_db() -> Generator[Session, None, None]:
+    """Dependency that provides a SQLAlchemy session."""
+    db = SessionLocal()  # Implementação duplicada
+    try:
+        yield db
+    finally:
+        db.close()  # Sem commit automático!
+```
+
+**Problema:** Duas implementações diferentes de `get_db()`:
+- `session.py`: ✅ Tem `session.commit()` automático
+- `dependencies.py`: ❌ Sem commit automático
+
+**Distribuição de Importações (30 arquivos verificados):**
+
+| Fonte | Quem Importa | Quantidade |
+|-------|--------------|------------|
+| `base.py` → `SessionLocal` | Jobs (escalation, gemini, message), dependencies.py, main.py | ~15 refs |
+| `session.py` → `get_db()` | Controllers (audit, conversation, handoff, lead, tag, job), deps.py | ~10 refs |
+| `session.py` → `get_sync_session()` | Services (conversation_orchestrator), ai_controller | ~2 refs |
+| `dependencies.py` → `get_db()` | TODOS os controllers principais | ~15 refs |
+
+**Impacto:**
+- ⚠️ **CRÍTICO:** Controllers usando `dependencies.get_db()` não têm commit automático
+- ⚠️ Comportamento inconsistente entre controllers
+- ⚠️ Confusão: 3 formas diferentes de obter session
+
+**Ação Necessária:** PADRONIZAR para uma única abordagem
+
+---
+
+### 🎯 **PLANO DE REFATORAÇÃO DETALHADO**
+
+---
+
+#### **FASE 1: LIMPEZA IMEDIATA (Deletar Código Morto)** 🔥
+
+**Prioridade:** 🔴 CRÍTICA  
+**Tempo Estimado:** 15 minutos  
+**Risco:** 🟢 ZERO (arquivos não são usados)  
+**Testes Necessários:** ❌ Não (código morto)
+
+##### **Task 1.1: Deletar deps.py**
+
+**Comando:**
+```bash
+rm src/robbot/api/v1/deps.py
+```
+
+**Validação:**
+```bash
+# Verificar que nenhum arquivo importa deps.py
+grep -r "from robbot.api.v1.deps import" src/
+grep -r "from robbot.api.v1 import deps" src/
+# Resultado esperado: "No matches found"
+
+# Verificar que dependencies.py ainda está sendo usado
+grep -r "from robbot.api.v1.dependencies import" src/ | wc -l
+# Resultado esperado: 15
+```
+
+**Commit:**
+```bash
+git add src/robbot/api/v1/deps.py
+git commit -m "refactor: remove código morto deps.py duplicado
+
+- Arquivo não utilizado (0 referências)
+- Funcionalidade duplicada em dependencies.py
+- dependencies.py é a versão correta (cookies, rate limiting, RBAC)"
+```
+
+##### **Task 1.2: Deletar exeptions.py (typo)**
+
+**Comando:**
+```bash
+rm src/robbot/core/exeptions.py
+```
+
+**Validação:**
+```bash
+# Verificar que nenhum arquivo importa exeptions.py
+grep -r "from robbot.core.exeptions import" src/
+# Resultado esperado: "No matches found"
+```
+
+**Commit:**
+```bash
+git add src/robbot/core/exeptions.py
+git commit -m "refactor: remove arquivo com typo exeptions.py
+
+- Arquivo não utilizado (0 referências)
+- Nome incorreto (typo: exeptions ao invés de exceptions)
+- Código duplicado de exceptions.py"
+```
+
+**Checklist de Conclusão - Fase 1:**
+- [ ] `deps.py` deletado
+- [ ] `exeptions.py` deletado
+- [ ] Grep confirma 0 importações dos arquivos deletados
+- [ ] Commits criados com mensagens descritivas
+- [ ] Push para repositório
+
+---
+
+#### **FASE 2: PADRONIZAÇÃO DE DATABASE SESSION** 📝
+
+**Prioridade:** 🟡 ALTA  
+**Tempo Estimado:** 2-3 horas  
+**Risco:** 🟡 MÉDIO (requer testes)  
+**Testes Necessários:** ✅ SIM (testar todos os endpoints)
+
+##### **Decisão Arquitetural:**
+
+**OPÇÃO ESCOLHIDA:** ✅ **Usar `session.py` como única fonte de truth**
+
+**Justificativa:**
+- ✅ `get_db()` com auto-commit é mais seguro
+- ✅ Centraliza lógica de session em um lugar
+- ✅ `get_sync_session()` já existe para uso síncrono
+- ✅ Evita reimplementação em dependencies.py
+
+##### **Task 2.1: Atualizar dependencies.py para usar session.py**
+
+**Arquivo:** `src/robbot/api/v1/dependencies.py`
+
+**Mudança:**
+```python
+# ANTES:
+from robbot.infra.db.base import SessionLocal
+
+def get_db() -> Generator[Session, None, None]:
+    """Dependency that provides a SQLAlchemy session."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# DEPOIS:
+from robbot.infra.db.session import get_db as session_get_db
+
+def get_db() -> Generator[Session, None, None]:
+    """Dependency that provides a SQLAlchemy session.
+    
+    Delegates to infra.db.session.get_db() for consistency.
+    Auto-commits on success, rollbacks on exception.
+    """
+    yield from session_get_db()
+```
+
+**Comando de Implementação:**
+```bash
+# Editar arquivo dependencies.py
+# Linha 16: trocar import
+# Linhas 39-47: trocar implementação
+```
+
+**Teste:**
+```bash
+# Executar testes de integração
+pytest tests/integration/ -v
+
+# Executar testes de controllers
+pytest tests/unit/controllers/ -v
+```
+
+##### **Task 2.2: Atualizar jobs para usar session.py**
+
+**Arquivos afetados:**
+- `src/robbot/infra/jobs/escalation_job.py`
+- `src/robbot/infra/jobs/gemini_job.py`
+- `src/robbot/infra/jobs/message_job.py`
+- `src/robbot/infra/jobs/reengagement_job.py`
+
+**Mudança padrão:**
+```python
+# ANTES:
+from robbot.infra.db.base import SessionLocal
+
+def process_job():
+    db = SessionLocal()
+    try:
+        # ... lógica
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+# DEPOIS:
+from robbot.infra.db.session import get_sync_session
+
+def process_job():
+    with get_sync_session() as db:
+        # ... lógica
+        # commit/rollback automático via context manager
+```
+
+**Comando de Implementação:**
+```bash
+# Para cada job:
+# 1. Trocar import SessionLocal → get_sync_session
+# 2. Trocar padrão try/finally → with context manager
+# 3. Remover db.commit() manual (automático)
+# 4. Remover db.rollback() manual (automático)
+# 5. Remover db.close() manual (automático)
+```
+
+##### **Task 2.3: Atualizar main.py**
+
+**Arquivo:** `src/robbot/main.py`
+
+**Mudança:**
+```python
+# ANTES:
+from robbot.infra.db.base import SessionLocal
+
+@app.on_event("startup")
+async def startup():
+    with SessionLocal() as db:
+        # ... verificação
+
+# DEPOIS:
+from robbot.infra.db.session import get_sync_session
+
+@app.on_event("startup")
+async def startup():
+    with get_sync_session() as db:
+        # ... verificação
+```
+
+##### **Task 2.4: Documentar padrão**
+
+**Criar arquivo:** `docs/patterns/database-sessions.md`
+
+```markdown
+# Padrão de Database Sessions
+
+## 📋 Regra Única
+
+**SEMPRE use `robbot.infra.db.session` para obter sessões de banco.**
+
+## ✅ Padrões Corretos
+
+### FastAPI Dependency Injection
+```python
+from robbot.api.v1.dependencies import get_db
+
+@router.get("/items")
+def list_items(db: Session = Depends(get_db)):
+    return db.query(Item).all()
+    # Commit automático no sucesso
+    # Rollback automático em exceção
+```
+
+### Background Jobs / Workers
+```python
+from robbot.infra.db.session import get_sync_session
+
+def process_background_job():
+    with get_sync_session() as db:
+        # ... sua lógica
+        pass
+    # Commit/rollback/close automático
+```
+
+### Services (quando necessário)
+```python
+from robbot.infra.db.session import get_sync_session
+
+class MyService:
+    def process_something(self):
+        with get_sync_session() as db:
+            # ... sua lógica
+```
+
+## ❌ Anti-Padrões (NÃO USAR)
+
+```python
+# ❌ ERRADO: Importar SessionLocal diretamente
+from robbot.infra.db.base import SessionLocal
+db = SessionLocal()
+
+# ❌ ERRADO: Gerenciamento manual de commit/rollback
+db = SessionLocal()
+try:
+    # ... código
+    db.commit()
+finally:
+    db.close()
+
+# ❌ ERRADO: Esquecer de fechar sessão
+db = SessionLocal()
+# ... código sem try/finally
+```
+
+## 🎯 Hierarquia de Imports
+
+```
+base.py (engine, SessionLocal, Base)
+    ↓
+session.py (get_db, get_sync_session)
+    ↓
+dependencies.py (get_db for DI)
+    ↓
+controllers/services/jobs
+```
+
+## 🔍 Por que esse padrão?
+
+1. **Auto-commit:** `get_db()` e `get_sync_session()` fazem commit automático
+2. **Auto-rollback:** Rollback automático em caso de exceção
+3. **Auto-close:** Sempre fecha a sessão (evita leaks)
+4. **Consistência:** Um único comportamento em todo o código
+5. **Testabilidade:** Fácil de mockar em testes
+```
+
+**Commit (após todos os testes passarem):**
+```bash
+git add src/robbot/api/v1/dependencies.py
+git add src/robbot/infra/jobs/*.py
+git add src/robbot/main.py
+git add docs/patterns/database-sessions.md
+git commit -m "refactor: padronizar database session management
+
+- Usar session.py como única fonte de sessões
+- Remover reimplementação de get_db() em dependencies.py
+- Migrar jobs para usar get_sync_session() context manager
+- Adicionar documentação de padrão
+
+BREAKING CHANGE: get_db() agora sempre faz auto-commit
+- Controllers: sem impacto (já esperado)
+- Jobs: código simplificado (sem commit manual)
+
+Fixes: #inconsistencia-database-sessions"
+```
+
+**Checklist de Conclusão - Fase 2:**
+- [ ] dependencies.py delegando para session.py
+- [ ] Todos os jobs usando `with get_sync_session()`
+- [ ] main.py usando session.py
+- [ ] Documentação criada em docs/patterns/
+- [ ] Todos os testes passando
+- [ ] Commit criado
+
+---
+
+#### **FASE 3: MIGRAÇÃO DE EXCEPTIONS (Gradual)** 🔄
+
+**Prioridade:** 🟢 MÉDIA  
+**Tempo Estimado:** 4-6 horas (distribuído em sprints)  
+**Risco:** 🟢 BAIXO (mudanças compatíveis)  
+**Testes Necessários:** ✅ SIM (após cada módulo)
+
+##### **Estratégia: Migração Incremental por Módulo**
+
+**Vantagem:** 
+- ✅ Pode fazer commit após cada módulo
+- ✅ Fácil de reverter se der problema
+- ✅ Distribuído ao longo do tempo
+
+##### **Task 3.1: Criar alias temporário**
+
+**Arquivo:** `src/robbot/core/exceptions.py`
+
+**Adicionar no TOPO do arquivo:**
+```python
+"""Custom exception classes for the application.
+
+⚠️ DEPRECATED: Este arquivo está sendo gradualmente migrado para custom_exceptions.py
+Use custom_exceptions.py para novos desenvolvimentos.
+"""
+
+# Temporariamente, importar de custom_exceptions para compatibilidade
+from robbot.core.custom_exceptions import (
+    AuthException,
+    NotFoundException,
+    ExternalServiceError,
+    BusinessRuleError,
+    DatabaseError,
+)
+
+__all__ = [
+    'AuthException',
+    'NotFoundException',
+    'ExternalServiceError',
+    'BusinessRuleError',
+    'DatabaseError',
+]
+```
+
+**Resultado:** Código existente continua funcionando, mas usa implementações de `custom_exceptions.py`
+
+**Teste:**
+```bash
+# Todos os imports continuam funcionando
+pytest tests/ -v
+```
+
+**Commit:**
+```bash
+git add src/robbot/core/exceptions.py
+git commit -m "refactor: deprecate exceptions.py em favor de custom_exceptions
+
+- Criar aliases para manter compatibilidade
+- Marcar como deprecated
+- Próximo passo: migrar imports gradualmente"
+```
+
+##### **Task 3.2: Migrar Controllers (10 arquivos)**
+
+**Ordem de migração:**
+1. `auth_controller.py` (AuthException)
+2. `user_controller.py` (NotFoundException)
+3. `notification_controller.py` (NotFoundException)
+4. `conversation_controller.py` (NotFoundException)
+5. `waha_controller.py` (ExternalServiceError)
+6. Demais controllers
+
+**Mudança padrão:**
+```python
+# ANTES:
+from robbot.core.exceptions import AuthException, NotFoundException
+
+# DEPOIS:
+from robbot.core.custom_exceptions import AuthException, NotFoundException
+```
+
+**Script de automação:**
+```bash
+# Criar script: scripts/migrate_exceptions.sh
+
+#!/bin/bash
+FILES=(
+    "src/robbot/adapters/controllers/auth_controller.py"
+    "src/robbot/adapters/controllers/user_controller.py"
+    "src/robbot/adapters/controllers/notification_controller.py"
+    "src/robbot/adapters/controllers/conversation_controller.py"
+    "src/robbot/adapters/controllers/waha_controller.py"
+)
+
+for file in "${FILES[@]}"; do
+    echo "Migrando $file..."
+    sed -i 's/from robbot\.core\.exceptions import/from robbot.core.custom_exceptions import/g' "$file"
+    
+    # Testar após cada migração
+    pytest "tests/unit/controllers/$(basename $file test_*.py)" -v
+    
+    if [ $? -eq 0 ]; then
+        git add "$file"
+        git commit -m "refactor: migrar $(basename $file) para custom_exceptions"
+    else
+        echo "❌ Erro ao migrar $file, revertendo..."
+        git checkout "$file"
+    fi
+done
+```
+
+##### **Task 3.3: Migrar Services (5 arquivos)**
+
+**Arquivos:**
+1. `auth_services.py`
+2. `conversation_service.py`
+3. `credential_service.py`
+4. `email_verification_service.py`
+5. `description_service.py`
+
+**Mesma estratégia:** trocar import + testar + commit individual
+
+##### **Task 3.4: Migrar Testes (5 arquivos)**
+
+**Arquivos:**
+1. `test_mfa.py`
+2. `test_email_verification.py`
+3. `test_auth_service.py`
+4. `test_mfa_endpoints.py`
+5. `test_mfa_login_flow.py`
+
+##### **Task 3.5: Migrar infra (VectorDB)**
+
+**Arquivo:** `src/robbot/infra/vectordb/chroma_client.py`
+
+**Mudança:**
+```python
+# ANTES:
+from robbot.core.exceptions import DatabaseError
+
+# DEPOIS:
+from robbot.core.custom_exceptions import VectorDBError
+
+# E trocar uso:
+# raise DatabaseError("ChromaDB error")
+raise VectorDBError("Collection error", original_error=e)
+```
+
+**Benefício:** Erro mais específico com contexto!
+
+##### **Task 3.6: Verificar e deletar exceptions.py**
+
+**Após todas as migrações:**
+```bash
+# Verificar que não há mais usos diretos
+grep -r "from robbot.core.exceptions import" src/
+# Resultado esperado: 0 matches (exceto o próprio exceptions.py)
+
+# Deletar arquivo
+rm src/robbot/core/exceptions.py
+
+# Atualizar imports que falharem
+# (se houver algum esquecido)
+```
+
+**Commit final:**
+```bash
+git add src/robbot/core/exceptions.py
+git commit -m "refactor: remover exceptions.py após migração completa
+
+- Todas as 20 referências migradas para custom_exceptions
+- Sistema agora usa hierarquia de exceções RobbotException
+- Exceções têm contexto (service_name, original_error)
+- Especialização por tipo (LLMError, WAHAError, QueueError)
+
+Closes: #migracao-exceptions"
+```
+
+**Checklist de Conclusão - Fase 3:**
+- [ ] Alias temporário criado
+- [ ] 10 controllers migrados
+- [ ] 5 services migrados
+- [ ] 5 testes migrados
+- [ ] 1 arquivo infra migrado
+- [ ] Grep confirma 0 usos de exceptions.py
+- [ ] exceptions.py deletado
+- [ ] Todos os testes passando
+
+---
+
+### 📊 **MÉTRICAS DE SUCESSO**
+
+**Antes da Refatoração:**
+- Arquivos duplicados: 4
+- Inconsistências de import: ~30
+- Linhas de código duplicado: ~150
+
+**Depois da Refatoração:**
+- Arquivos duplicados: 0
+- Padrão único de imports: 100%
+- Código simplificado: -150 linhas
+- Documentação de padrões: +1 arquivo
+
+---
+
+### 🎯 **RESUMO EXECUTIVO PARA LLM**
+
+Se você é um LLM executando esta refatoração, siga EXATAMENTE esta sequência:
+
+**FASE 1 - AGORA (15 min):**
+```bash
+# 1. Deletar arquivos mortos
+rm src/robbot/api/v1/deps.py
+rm src/robbot/core/exeptions.py
+
+# 2. Validar
+grep -r "deps import" src/  # deve retornar 0
+grep -r "exeptions import" src/  # deve retornar 0
+
+# 3. Commit
+git add -A
+git commit -m "refactor: remover código morto (deps.py, exeptions.py)"
+```
+
+**FASE 2 - HOJE/AMANHÃ (2-3h):**
+1. Editar `dependencies.py`: usar `session.get_db()`
+2. Editar 4 jobs: usar `with get_sync_session()`
+3. Editar `main.py`: usar `get_sync_session()`
+4. Criar `docs/patterns/database-sessions.md`
+5. Rodar `pytest tests/` - tudo deve passar
+6. Commit
+
+**FASE 3 - PRÓXIMA SEMANA (4-6h distribuído):**
+1. Adicionar aliases em `exceptions.py`
+2. Migrar 10 controllers (1 commit cada)
+3. Migrar 5 services (1 commit cada)
+4. Migrar 5 testes (1 commit cada)
+5. Migrar 1 infra (commit)
+6. Validar com grep (0 usos)
+7. Deletar `exceptions.py`
+8. Commit final
+
+**VALIDAÇÃO FINAL:**
+```bash
+# Deve retornar 0 para todos:
+grep -r "api/v1/deps import" src/
+grep -r "core/exeptions import" src/
+grep -r "core/exceptions import" src/
+grep -r "from.*base import SessionLocal" src/robbot/api/
+grep -r "from.*base import SessionLocal" src/robbot/adapters/
+
+# Testes devem passar 100%:
+pytest tests/ -v --tb=short
+```
+
+---
+
 ## 📊 Status Atual do Projeto (Atualizado: 26/12/2025)
 
 ### 🎉 **PROJETO PRODUCTION-READY - 100% COMPLETO**
