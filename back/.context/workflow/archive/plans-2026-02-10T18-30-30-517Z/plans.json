@@ -1,0 +1,22 @@
+{
+  "active": [
+    {
+      "slug": "fix-waha-polling-silent-drop",
+      "path": "plans/fix-waha-polling-silent-drop.md",
+      "title": "Corrigir Polling WAHA — Mensagens Silenciosamente Descartadas no DEV Mode",
+      "summary": "O polling WAHA busca mensagens com sucesso (HTTP 200) de 4 chats, mas NENHUMA mensagem é",
+      "linkedAt": "2026-02-10T13:51:16.598Z",
+      "status": "active"
+    },
+    {
+      "slug": "solve-debounce-scheduler-issue",
+      "path": "plans/solve-debounce-scheduler-issue.md",
+      "title": "Refactor Message Polling and Debounce Scheduler",
+      "summary": "Optimize the WAHA polling scheduler and message debounce logic to reduce latency, avoid redundant API calls, and ensure reliable message grouping.",
+      "linkedAt": "2026-02-10T18:30:18.628Z",
+      "status": "active"
+    }
+  ],
+  "completed": [],
+  "primary": "fix-waha-polling-silent-drop"
+}

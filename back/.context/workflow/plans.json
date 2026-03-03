@@ -1,0 +1,14 @@
+{
+  "active": [
+    {
+      "slug": "solve-debounce-scheduler-issue",
+      "path": "plans/solve-debounce-scheduler-issue.md",
+      "title": "Refactor Message Polling and Debounce Scheduler",
+      "summary": "Optimize the WAHA polling scheduler and message debounce logic to reduce latency, avoid redundant API calls, and ensure reliable message grouping.",
+      "linkedAt": "2026-02-10T18:30:54.216Z",
+      "status": "active"
+    }
+  ],
+  "completed": [],
+  "primary": "solve-debounce-scheduler-issue"
+}

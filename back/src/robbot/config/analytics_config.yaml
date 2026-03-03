@@ -1,0 +1,183 @@
+# Analytics Configuration
+# Este arquivo centraliza lógica de negócio que estava hardcoded em SQL
+
+# P3 #3: Sentiment Analysis Configuration
+# Fallback strategy: regex (rápido, grátis) → Gemini API (preciso, pago)
+sentiment_analysis:
+  # Estratégia primária: regex (local, sem custo)
+  use_regex: true
+  
+  # Estratégia secundária: Gemini API (requer custo, ativa apenas se false_positive_rate > threshold)
+  gemini_fallback:
+    enabled: true
+    threshold_false_positive_rate: 30.0  # % - ativa Gemini se regex falhar em >30% dos casos
+    batch_size: 50  # mensagens por batch (reduz chamadas API)
+    cache_ttl_seconds: 86400  # 24h - cache de resultados Gemini
+  
+  # Modelo Gemini para sentiment
+  gemini_model: "gemini-1.5-flash"  # mais barato e rápido que gemini-pro
+  
+  # Prompt template para Gemini
+  gemini_prompt: |
+    Analise o sentimento da seguinte mensagem de cliente.
+    Classifique como: POSITIVE, NEGATIVE ou NEUTRAL.
+    
+    Mensagem: "{message}"
+    
+    Retorne APENAS uma palavra: POSITIVE, NEGATIVE ou NEUTRAL.
+
+# Stop words para análise de keywords (português brasileiro)
+stop_words:
+  - para
+  - com
+  - que
+  - por
+  - uma
+  - esse
+  - essa
+  - como
+  - mais
+  - pela
+  - pelo
+  - muito
+  - está
+  - tem
+  - aqui
+  - quando
+  - onde
+  - quem
+  - qual
+  - seu
+  - sua
+  - isso
+  - este
+  - esta
+  - pode
+  - fazer
+  - sobre
+  - até
+  - também
+  - ainda
+  - foi
+  - ser
+  - vai
+
+# Análise de sentimento (expandido com n-grams e negações)
+sentiment_keywords:
+  positive:
+    - obrigad
+    - legal
+    - ótimo
+    - excelente
+    - bom
+    - perfeito
+    - maravilh
+    - adorei
+    - amei
+    - top
+    - show
+    - bacana
+    - muito bom
+    - super bom
+    - gostei muito
+    - ficou ótimo
+    - atendimento excelente
+    - bem atendido
+    - nota 10
+  negative:
+    - ruim
+    - péssimo
+    - horrível
+    - problema
+    - erro
+    - demora
+    - insatisfeit
+    - cancelar
+    - reclamar
+    - não gostei
+    - muito ruim
+    - mal atendido
+    - decepcion
+    - frustrad
+    - lament
+    - arrependid
+  neutral:
+    - dúvida
+    - pergunta
+    - informação
+    - gostaria
+    - poderia
+    - quando
+    - onde
+  negation_modifiers:
+    - não
+    - nem
+    - nunca
+    - jamais
+
+# Topics de classificação (regex patterns)
+topics:
+  Agendamento:
+    - agendar
+    - agendamento
+    - marcar
+    - consulta
+    - horário
+    - disponível
+    - vaga
+    - data
+  Preços:
+    - preço
+    - valor
+    - custo
+    - quanto
+    - pagar
+    - pagamento
+    - orçamento
+    - cobrar
+  Localização:
+    - localização
+    - endereço
+    - onde
+    - fica
+    - chegar
+    - mapa
+    - rota
+  Procedimentos:
+    - procedimento
+    - tratamento
+    - serviço
+    - plano
+    - tipo
+    - opções
+    - oferece
+  Reagendamento:
+    - cancelar
+    - desmarcar
+    - remarcar
+    - alterar
+    - mudar
+  Dúvidas:
+    - dúvida
+    - pergunta
+    - informação
+    - saber
+    - duvida
+    - esclarec
+  Outros:
+    - []  # fallback para mensagens não classificadas
+
+# Performance alerts thresholds
+performance_thresholds:
+  latency_ms: 5000  # 5 segundos
+  error_rate_percent: 5.0  # 5%
+  active_conversations_warning: 50
+  active_conversations_critical: 100
+  realtime_window_minutes: 5
+
+# Cache TTL configurations (em segundos)
+cache_ttl:
+  realtime: 30       # 30 segundos - dados real-time
+  metrics: 900       # 15 minutos - métricas agregadas
+  historical: 3600   # 1 hora - dados históricos
+  reports: 1800      # 30 minutos - relatórios completos

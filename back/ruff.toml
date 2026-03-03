@@ -1,0 +1,66 @@
+# Ruff configuration - Modern Python linter and formatter
+# https://docs.astral.sh/ruff/
+
+# Extend Python 3.11
+target-version = "py311"
+
+# Line length to match black
+line-length = 120
+
+[lint]
+# Enable specific rule sets
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "RET",    # flake8-return
+]
+
+# Ignore specific rules that are too strict or cause false positives
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function call in argument defaults
+    "B904",   # raise from
+    "N805",   # first argument should be self
+    "RET505", # unnecessary else after return
+    "RET506", # unnecessary else after raise
+    "SIM108", # use ternary operator
+]
+
+# Exclude directories
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "alembic",
+    "migrations",
+    "*.egg-info",
+    "build",
+    "dist",
+    ".pytest_cache",
+    ".ruff_cache",
+]
+
+[lint.per-file-ignores]
+# Ignore specific rules in test files
+"tests/**/*.py" = ["N802", "N803"]
+# Ignore import rules in __init__.py files
+"__init__.py" = ["F401", "F403"]
+
+[lint.isort]
+known-first-party = ["robbot"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[format]
+# Use single quotes
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

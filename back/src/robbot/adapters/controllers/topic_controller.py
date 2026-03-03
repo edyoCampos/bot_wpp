@@ -1,0 +1,114 @@
+"""Topic Controller - REST endpoints for topic management."""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from robbot.api.v1.dependencies import get_current_user, get_db
+from robbot.common.utils import filter_none_values
+from robbot.schemas.topic import DeletedResponse, TopicCreate, TopicList, TopicOut, TopicUpdate
+from robbot.services.ai.context_service import ContextService
+
+router = APIRouter()
+
+
+@router.post("/", response_model=TopicOut, status_code=status.HTTP_201_CREATED)
+def create_topic(
+    payload: TopicCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Create a new topic.
+
+    Topics are generic containers for organizing contexts by subject/context.
+    Examples: "Botox", "Preenchimento Labial", "Clareamento Dental".
+
+    Requires authentication.
+    """
+    service = ContextService(db)
+    created = service.create_topic(
+        name=payload.name,
+        description=payload.description,
+        category=payload.category,
+        active=payload.active,
+    )
+    return TopicOut.model_validate(created)
+
+
+@router.get("/{topic_id}", response_model=TopicOut)
+def get_topic(
+    topic_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retrieve topic by ID."""
+    service = ContextService(db)
+    topic = service.get_topic(topic_id)
+    if not topic:
+        raise HTTPException(status_code=404, detail=f"Topic {topic_id} not found")
+    return TopicOut.model_validate(topic)
+
+
+@router.get("/", response_model=TopicList)
+def list_topics(
+    active_only: bool = False,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    List all topics.
+
+    Query params:
+    - active_only: Filter only active topics
+    - skip: Pagination offset
+    - limit: Max results (default 100)
+    """
+    service = ContextService(db)
+    topics = service.list_topics(active_only=active_only, skip=skip, limit=limit)
+    return TopicList(topics=[TopicOut.model_validate(t) for t in topics], total=len(topics))
+
+
+@router.patch("/{topic_id}", response_model=TopicOut)
+def update_topic(
+    topic_id: str,
+    payload: TopicUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Update topic fields.
+
+    Only provided fields will be updated.
+    """
+    service = ContextService(db)
+
+    # Build update dict (only non-None values)
+    update_data = filter_none_values(payload)
+
+    updated = service.update_topic(topic_id, **update_data)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Topic {topic_id} not found")
+
+    return TopicOut.model_validate(updated)
+
+
+@router.delete("/{topic_id}", response_model=DeletedResponse)
+def delete_topic(
+    topic_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Delete topic.
+
+    Cascades deletion to all associated contexts and items.
+    """
+    service = ContextService(db)
+    success = service.delete_topic(topic_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Topic {topic_id} not found")
+
+    return DeletedResponse(message="Topic deleted successfully", deleted_id=topic_id)
+

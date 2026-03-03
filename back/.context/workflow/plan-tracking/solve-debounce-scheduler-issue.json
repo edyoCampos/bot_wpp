@@ -1,0 +1,16 @@
+{
+  "planSlug": "solve-debounce-scheduler-issue",
+  "progress": 100,
+  "phases": {
+    "phase-1": {
+      "status": "completed",
+      "updatedAt": "2026-02-10T18:30:45.410Z"
+    },
+    "phase-2": {
+      "status": "in_progress",
+      "updatedAt": "2026-02-10T18:30:45.669Z"
+    }
+  },
+  "decisions": [],
+  "lastUpdated": "2026-02-10T18:30:41.949Z"
+}
