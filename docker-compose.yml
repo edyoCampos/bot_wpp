@@ -1,43 +1,38 @@
 name: tic
 
 services:
-  # ---------------------------------------------------------------------------
-  # Banco de Dados (PostgreSQL 18)
-  # ---------------------------------------------------------------------------
+  # ============================================================================
+  # INFRASTRUCTURE SERVICES (Data & Messaging)
+  # ============================================================================
+
+  # DB (PostgreSQL 18)
   db:
     image: postgres:18-alpine
-    container_name: postgres
+    container_name: db
     restart: unless-stopped
-
-    # Carrega variáveis do .env (caso você use)
     env_file:
-      - .env
-
+      - ./back/.env
     environment:
       TZ: ${POSTGRES_TZ:-UTC}
       POSTGRES_USER: dba
       POSTGRES_PASSWORD: dba
       POSTGRES_DB: BotDB
-
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-15432}:5432"
-
-    # Volume correto para PostgreSQL >= 18
     volumes:
       - db_data:/var/lib/postgresql/data
-
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dba -d BotDB"]
+      test: [ "CMD-SHELL", "pg_isready -U dba -d BotDB" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - skynet
 
-  # ---------------------------------------------------------------------------
-  # Cache e Filas (Redis)
-  # ---------------------------------------------------------------------------
-  redis:
+  # Redis (Cache)
+  rd:
     image: redis:7-alpine
-    container_name: redis
+    container_name: rd
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
@@ -45,185 +40,268 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - skynet
 
-  # ---------------------------------------------------------------------------
-  # Interface do Banco (Adminer)
-  # ---------------------------------------------------------------------------
-  adminer:
-    image: adminer:4
-    container_name: adminer
+  # ============================================================================
+  # CORE SERVICES (GO & WK)
+  # ============================================================================
+
+  # MAIN API (GO)
+  go:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+      target: runtime-api
+      cache_from:
+        - type=local,src=/tmp/.buildx-cache
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: tic-api
+    container_name: go
     restart: unless-stopped
+    env_file:
+      - ./back/.env
+    environment:
+      PYTHONPATH: ${PYTHONPATH:-/app/src}
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
+      SERVICE_NAME: "go"
+      LOG_COLOR: "true"
+      DATABASE_URL: postgresql+psycopg2://dba:dba@db:5432/BotDB
+      POSTGRES_HOST: db
+      # Update Redis Host ref
+      REDIS_URL: redis://rd:6379/0
+      # SMTP
+      SMTP_HOST: md
+      SMTP_PORT: 1025
+      # WAHA
+      # WAHA_API_KEY loaded from env_file
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:3333:3333"
+    volumes:
+      - ./back/src:/app/src # Hot-reload mount
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      rd:
+        condition: service_healthy
+      md:
+        condition: service_started
+      waha:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:3333/api/v1/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 90s
+    networks:
+      - skynet
 
-  # ---------------------------------------------------------------------------
-  # WhatsApp API (Waha)
-  # ---------------------------------------------------------------------------
+  # RQ Workers (WK)
+  wk:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+      target: runtime-worker
+    image: tic-wk
+    # container_name: wk (Removed to allow scaling)
+    restart: unless-stopped
+    env_file:
+      - ./back/.env
+    environment:
+      PYTHONPATH: "/app/src"
+      DATABASE_URL: postgresql+psycopg2://dba:dba@db:5432/BotDB
+      REDIS_URL: redis://rd:6379/0
+      SERVICE_NAME: "wk"
+      LOG_COLOR: "true"
+      RQ_JOB_TIMEOUT_MESSAGE: 600
+      SMTP_HOST: md
+      SMTP_PORT: 1025
+    volumes:
+      - chroma_data:/app/data/chroma
+    depends_on:
+      db:
+        condition: service_healthy
+      rd:
+        condition: service_healthy
+      waha:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c 'from robbot.infra.redis.client import get_redis_client; get_redis_client().ping()' || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - skynet
+
+  # Polling Worker (PWK)
+  pwk:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+      target: runtime-worker
+    image: tic-pwk
+    container_name: pwk
+    restart: unless-stopped
+    env_file:
+      - ./back/.env
+    environment:
+      PYTHONPATH: /app/src
+      DATABASE_URL: postgresql+psycopg2://dba:dba@db:5432/BotDB
+      REDIS_URL: redis://rd:6379/0
+      SERVICE_NAME: "pwk"
+      LOG_COLOR: "true"
+      WAHA_POLLING_INTERVAL: ${WAHA_POLLING_INTERVAL:-10}
+    command: python -m robbot.workers.polling_worker
+    depends_on:
+      db:
+        condition: service_healthy
+      rd:
+        condition: service_healthy
+      waha:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c 'from robbot.infra.redis.client import get_redis_client; get_redis_client().ping()' || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - skynet
+
+  # Autoscaler (Ops)
+  ops:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+      target: runtime-autoscaler
+    image: tic-ops
+    container_name: ops
+    restart: unless-stopped
+    env_file:
+      - ./back/.env
+    environment:
+      PYTHONPATH: /app/src
+      REDIS_URL: redis://rd:6379/0
+      DATABASE_URL: postgresql+psycopg2://dba:dba@db:5432/BotDB
+      LOG_COLOR: "true"
+    user: "root"
+    # Fix: Added missing semicolons for valid shell syntax
+    command: sh -c "while true; do python /app/back/scripts/autoscale_workers.py; sleep 120; done"
+    depends_on:
+      db:
+        condition: service_healthy
+      rd:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./back:/app/back:ro
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "test -f /app/back/scripts/autoscale_workers.py || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - skynet
+
+  # ============================================================================
+  # FRONTEND (WEB)
+  # ============================================================================
+
+  # NEXT.JS (WEB)
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3333/api/v1
+    image: tic-web
+    container_name: web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Internal URL -> points to 'go' service
+      API_URL: http://go:3333/api/v1
+      # Public URL -> points to localhost host binding
+      NEXT_PUBLIC_API_URL: http://localhost:3333/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      go:
+        condition: service_healthy
+    networks:
+      - skynet
+
+  # ============================================================================
+  # TOOLS (WAHA, ADM, MD)
+  # ============================================================================
+
+  # WAHA (API WhatsApp)
   waha:
     image: devlikeapro/waha:chrome
     container_name: waha
     restart: unless-stopped
-    
     env_file:
-      - .env
-    
-    environment:
-      WAHA_API_KEY: ${WAHA_API_KEY:-your-secret-api-key}
-      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
-      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD:-admin}
-      WHATSAPP_SWAGGER_USERNAME: ${WHATSAPP_SWAGGER_USERNAME:-admin}
-      WHATSAPP_SWAGGER_PASSWORD: ${WHATSAPP_SWAGGER_PASSWORD:-admin}
-    
+      - ./back/.env
+    # environment:
+    #   Configuration loaded from ./back/.env via env_file
     ports:
-      - "127.0.0.1:3000:3000"
-    
+      - "127.0.0.1:3001:3000"
     volumes:
       - waha_data:/app/.sessions
-    
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ping || exit 1"]
+      test: [ "CMD-SHELL", "wget -q --spider http://localhost:3000/ping || exit 1" ]
       interval: 15s
       timeout: 10s
       retries: 5
       start_period: 30s
+    networks:
+      - skynet
 
-  # ---------------------------------------------------------------------------
-  # Aplicação Principal (API)
-  # ---------------------------------------------------------------------------
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: api
+  # Adminer (DB UI) -> ADM
+  adm:
+    image: adminer:latest
+    container_name: adm
     restart: unless-stopped
-    env_file:
-      - .env
-
-    environment:
-      PYTHONPATH: ${PYTHONPATH:-/app/src}
-      AUTO_MIGRATE: ${AUTO_MIGRATE:-false}
-
-      # Database Config
-      DATABASE_URL: postgresql+psycopg2://dba:dba@db:5432/BotDB
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: dba
-      POSTGRES_PASSWORD: dba
-      POSTGRES_DB: BotDB
-
-      # Redis Config
-      REDIS_URL: redis://redis:6379/0
-
-      # SMTP (Maildev em desenvolvimento)
-      SMTP_HOST: ${SMTP_HOST:-maildev}
-      SMTP_PORT: ${SMTP_PORT:-1025}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_TLS: ${SMTP_TLS:-false}
-      SMTP_SENDER: ${SMTP_SENDER:-no-reply@example.local}
-
-      # Recomendação profissional:
-      # SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-
     ports:
-      - "127.0.0.1:3333:3333"
-
-    volumes:
-      - .:/app
-
+      - "127.0.0.1:8080:8080"
     depends_on:
       db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      maildev:
         condition: service_started
-      waha:
-        condition: service_healthy
-
-    healthcheck:
-      test:
-        ["CMD-SHELL", "curl -fsS http://localhost:3333/api/v1/health || exit 1"]
-      interval: 10s
-      timeout: 2s
-      retries: 3
-
-  # ---------------------------------------------------------------------------
-  # RQ Workers (Processamento Assíncrono)
-  # ---------------------------------------------------------------------------
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
-    # container_name removido porque replicas > 1
-    restart: unless-stopped
-    
-    env_file:
-      - .env
-
-    environment:
-      PYTHONPATH: /app/src
-      DATABASE_URL: postgresql+psycopg2://dba:dba@db:5432/BotDB
-      REDIS_URL: redis://redis:6379/0
-      SMTP_HOST: ${SMTP_HOST:-maildev}
-      SMTP_PORT: ${SMTP_PORT:-1025}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_TLS: ${SMTP_TLS:-false}
-      SMTP_SENDER: ${SMTP_SENDER:-no-reply@example.local}
-
     volumes:
-      - .:/app
+      - ./back/adminer-dark.css:/var/www/html/adminer.css:ro
+    networks:
+      - skynet
 
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      waha:
-        condition: service_healthy
-
-    # Escalar workers conforme necessário:
-    # docker compose up -d --scale worker=2
-    
-    # NOTA: 'deploy.replicas' é ignorado em docker compose standalone
-    # Use --scale worker=N para múltiplos workers em dev
-    # Em produção (Swarm/K8s), descomente 'deploy' abaixo
-    
-    # deploy:
-    #   replicas: 2
-    #   restart_policy:
-    #     condition: on-failure
-    #     delay: 5s
-    #     max_attempts: 3
-
-    healthcheck:
-      test: ["CMD-SHELL", "python -c 'from robbot.infra.redis.client import get_redis_client; get_redis_client().ping()' || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-
-  # ---------------------------------------------------------------------------
-  # Maildev (SMTP fake para desenvolvimento)
-  # ---------------------------------------------------------------------------
-  maildev:
+  # Maildev (SMTP) -> MD
+  md:
     image: maildev/maildev:latest
-    container_name: maildev
+    container_name: md
     restart: unless-stopped
     environment:
       - MAILDEV_WEB_PORT=1080
       - MAILDEV_SMTP_PORT=1025
     ports:
-      - "127.0.0.1:1080:1080"  # UI web
-      - "127.0.0.1:1025:1025"  # SMTP
+      - "127.0.0.1:1080:1080"
+      - "127.0.0.1:1025:1025"
+    networks:
+      - skynet
 
+# Explicitly named volumes to reuse existing data if any, or create new under 'tic'
 volumes:
   db_data:
   redis_data:
   waha_data:
+  chroma_data:
+
+
+networks:
+  skynet:
+    driver: bridge
