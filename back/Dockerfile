@@ -24,16 +24,16 @@ WORKDIR /app
 # Instala dependências do sistema (camada cacheada)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       build-essential \
-       libpq-dev \
-       postgresql-client \
-       curl \
-       ca-certificates \
-       dos2unix \
+    build-essential \
+    libpq-dev \
+    postgresql-client \
+    curl \
+    ca-certificates \
+    dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
 # Atualiza pip e instala uv para builds mais rápidos
-RUN --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
     pip install --upgrade pip setuptools wheel uv
 
 # CRITICO: Copia APENAS arquivos de dependencias primeiro (cache layer)
@@ -41,8 +41,8 @@ COPY pyproject.toml ./
 
 # Instala deps do pyproject.toml (exceto ML: torch, transformers, faster-whisper)
 # IMPORTANTE: openpyxl e reportlab são necessários para export_service.py
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+    --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
     uv pip install --system \
     alembic bcrypt chromadb email-validator fastapi google-genai google-api-core httpx \
     langchain langchain-google-genai langchain-groq passlib pillow psycopg2-binary pydantic \
@@ -51,8 +51,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     gunicorn watchfiles hiredis python-jose cryptography openai pyyaml
 
 # Instala dependências de exportação separadamente (podem ter deps adicionais)
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+    --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
     uv pip install --system openpyxl reportlab
 
 # ============================================================================
@@ -69,21 +69,21 @@ WORKDIR /app
 # Instala apenas build essentials
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       build-essential \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-RUN --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
     pip install --upgrade pip uv
 
 # Instala PyTorch CPU-only (MUITO menor: 858MB → ~200MB)
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+    --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
     uv pip install --system \
     torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Instala transformers e faster-whisper
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+    --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
     uv pip install --system transformers>=4.57.3 faster-whisper>=1.0.0
 
 # ============================================================================
@@ -100,10 +100,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Instala apenas runtime libraries (sem build-essential)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       libpq5 \
-       postgresql-client \
-       curl \
-       dos2unix \
+    libpq5 \
+    postgresql-client \
+    curl \
+    dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
 # Cria usuário não-root
