@@ -12,8 +12,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+back/lib/
+back/lib64/
 parts/
 sdist/
 var/
@@ -119,3 +119,37 @@ coverage.xml
 .cache/
 .mypy_cache/
 .ruff_cache/
+
+# ==================================
+# UV Package Manager
+# ==================================
+.uv/
+
+# ==================================
+# Data/Storage
+# ==================================
+data/
+storage/
+uploads/
+
+# ==================================
+# Frontend (Next.js)
+# ==================================
+# Dependencies
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.js
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Production
+frontend/build/
+
+# Vercel
+frontend/.vercel
+
+# TypeScript
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
