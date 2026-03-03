@@ -1,28 +1,20 @@
-# Exclude VCS
+# Include any files/directories to ignore in the build context
+Dockerfile*
+docker-compose*.yml
+.dockerignore
 .git
-.gitignore
-
-# Python cache/artifacts
-__pycache__/
+.github
+.env
+.env.*
+.venv
+venv
+__pycache__
 *.pyc
-*.pyo
-*.pyd
-*.log
-*.sqlite3
-
-# Virtual environments
-.venv/
-.env/
-
-# Tool caches
 .pytest_cache/
 .mypy_cache/
 htmlcov/
-
-# Local config
-.env
-*.local
-
-# Misc
-.DS_Store
-Thumbs.db
+site/
+docs/
+coverage.xml
+.coverage
+*.log
