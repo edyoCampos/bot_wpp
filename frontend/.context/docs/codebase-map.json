@@ -1,0 +1,960 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-02-10T15:59:22.367Z",
+  "stack": {
+    "primaryLanguage": "typescript",
+    "languages": [
+      "javascript",
+      "typescript"
+    ],
+    "frameworks": [
+      "nextjs"
+    ],
+    "buildTools": [],
+    "testFrameworks": [
+      "playwright"
+    ],
+    "packageManager": "npm",
+    "isMonorepo": false,
+    "hasDocker": false,
+    "hasCI": false
+  },
+  "structure": {
+    "totalFiles": 98,
+    "topDirectories": [
+      {
+        "name": "components.json",
+        "fileCount": 1
+      },
+      {
+        "name": "design",
+        "fileCount": 4
+      },
+      {
+        "name": "docs",
+        "fileCount": 4
+      },
+      {
+        "name": "eslint.config.mjs",
+        "fileCount": 1
+      },
+      {
+        "name": "next.config.ts",
+        "fileCount": 1
+      },
+      {
+        "name": "package-lock.json",
+        "fileCount": 1
+      },
+      {
+        "name": "package.json",
+        "fileCount": 1
+      },
+      {
+        "name": "playwright.config.ts",
+        "fileCount": 1
+      },
+      {
+        "name": "postcss.config.mjs",
+        "fileCount": 1
+      },
+      {
+        "name": "public",
+        "fileCount": 7
+      },
+      {
+        "name": "README.md",
+        "fileCount": 1
+      },
+      {
+        "name": "src",
+        "fileCount": 68
+      },
+      {
+        "name": "test-results",
+        "fileCount": 0
+      },
+      {
+        "name": "tests",
+        "fileCount": 5
+      },
+      {
+        "name": "tsconfig.json",
+        "fileCount": 1
+      },
+      {
+        "name": "tsconfig.tsbuildinfo",
+        "fileCount": 1
+      }
+    ],
+    "languageDistribution": [
+      {
+        "extension": ".tsx",
+        "count": 58
+      },
+      {
+        "extension": ".ts",
+        "count": 13
+      },
+      {
+        "extension": ".md",
+        "count": 10
+      },
+      {
+        "extension": ".svg",
+        "count": 5
+      },
+      {
+        "extension": ".json",
+        "count": 4
+      },
+      {
+        "extension": ".mjs",
+        "count": 2
+      },
+      {
+        "extension": ".png",
+        "count": 2
+      },
+      {
+        "extension": ".tsbuildinfo",
+        "count": 1
+      },
+      {
+        "extension": ".css",
+        "count": 1
+      },
+      {
+        "extension": ".ico",
+        "count": 1
+      }
+    ]
+  },
+  "architecture": {
+    "layers": [
+      {
+        "name": "Components",
+        "description": "UI components and views",
+        "directories": [
+          "tests",
+          "src\\app",
+          "src\\components",
+          "src\\app\\styleguide",
+          "src\\app\\reset",
+          "src\\app\\forgot",
+          "src\\components\\ui",
+          "src\\app\\(auth)\\signin",
+          "src\\app\\(auth)\\signup",
+          "src\\app\\styleguide\\components\\tabs",
+          "src\\app\\styleguide\\components\\table",
+          "src\\app\\styleguide\\components\\tooltip",
+          "src\\app\\styleguide\\components\\separator",
+          "src\\app\\styleguide\\components\\select",
+          "src\\app\\styleguide\\components\\progress",
+          "src\\app\\styleguide\\components\\message-bubble",
+          "src\\app\\styleguide\\components\\message-input",
+          "src\\app\\styleguide\\components\\login-form",
+          "src\\app\\styleguide\\components\\input",
+          "src\\app\\styleguide\\components\\dropdown-menu",
+          "src\\app\\styleguide\\components\\contact-card",
+          "src\\app\\styleguide\\components\\checkbox",
+          "src\\app\\styleguide\\components\\card",
+          "src\\app\\styleguide\\components\\calendar",
+          "src\\app\\styleguide\\components\\button",
+          "src\\app\\styleguide\\components\\badge",
+          "src\\app\\styleguide\\components\\avatar",
+          "src\\app\\styleguide\\components\\layouts\\list-view",
+          "src\\app\\styleguide\\components\\layouts\\kanban",
+          "src\\app\\styleguide\\components\\layouts\\page-container",
+          "src\\app\\styleguide\\components\\layouts\\dashboard-grid",
+          "src\\app\\styleguide\\components\\charts\\line",
+          "src\\app\\styleguide\\components\\charts\\bar",
+          "src\\app\\styleguide\\components\\charts\\gauge"
+        ],
+        "symbolCount": 46,
+        "dependsOn": []
+      },
+      {
+        "name": "Services",
+        "description": "Business logic and orchestration",
+        "directories": [
+          "src\\services"
+        ],
+        "symbolCount": 4,
+        "dependsOn": []
+      },
+      {
+        "name": "Utils",
+        "description": "Shared utilities and helpers",
+        "directories": [
+          "src\\lib",
+          "src\\lib\\validations"
+        ],
+        "symbolCount": 3,
+        "dependsOn": []
+      },
+      {
+        "name": "Controllers",
+        "description": "Request handling and routing",
+        "directories": [
+          "src\\lib"
+        ],
+        "symbolCount": 2,
+        "dependsOn": []
+      }
+    ],
+    "patterns": [],
+    "entryPoints": []
+  },
+  "symbols": {
+    "classes": [],
+    "interfaces": [
+      {
+        "name": "LabelProps",
+        "kind": "interface",
+        "file": "src\\components\\ui\\label.tsx",
+        "line": 6,
+        "exported": true
+      },
+      {
+        "name": "NavItem",
+        "kind": "interface",
+        "file": "src\\app\\styleguide\\navigation.ts",
+        "line": 1,
+        "exported": true
+      },
+      {
+        "name": "NavSection",
+        "kind": "interface",
+        "file": "src\\app\\styleguide\\navigation.ts",
+        "line": 6,
+        "exported": true
+      },
+      {
+        "name": "ContactCardProps",
+        "kind": "interface",
+        "file": "src\\app\\styleguide\\components\\contact-card\\page.tsx",
+        "line": 9,
+        "exported": false
+      },
+      {
+        "name": "MessageBubbleProps",
+        "kind": "interface",
+        "file": "src\\components\\ui\\message-bubble.tsx",
+        "line": 7,
+        "exported": false
+      },
+      {
+        "name": "MessageInputProps",
+        "kind": "interface",
+        "file": "src\\components\\ui\\message-input.tsx",
+        "line": 9,
+        "exported": false
+      }
+    ],
+    "functions": [
+      {
+        "name": "AuthLayout",
+        "kind": "function",
+        "file": "src\\app\\(auth)\\layout.tsx",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "AvatarShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\avatar\\page.tsx",
+        "line": 5,
+        "exported": true
+      },
+      {
+        "name": "BackendStatus",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\BackendStatus.tsx",
+        "line": 4,
+        "exported": true
+      },
+      {
+        "name": "BadgeShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\badge\\page.tsx",
+        "line": 6,
+        "exported": true
+      },
+      {
+        "name": "ButtonShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\button\\page.tsx",
+        "line": 13,
+        "exported": true
+      },
+      {
+        "name": "CheckboxShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\checkbox\\page.tsx",
+        "line": 6,
+        "exported": true
+      },
+      {
+        "name": "cn",
+        "kind": "function",
+        "file": "src\\lib\\utils.ts",
+        "line": 4,
+        "exported": true
+      },
+      {
+        "name": "DropdownMenuShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\dropdown-menu\\page.tsx",
+        "line": 19,
+        "exported": true
+      },
+      {
+        "name": "fetchApi",
+        "kind": "function",
+        "file": "src\\lib\\api.ts",
+        "line": 5,
+        "exported": true
+      },
+      {
+        "name": "focusFirstError",
+        "kind": "function",
+        "file": "src\\app\\reset\\ResetPasswordForm.tsx",
+        "line": 25,
+        "exported": true
+      },
+      {
+        "name": "ForgotPasswordPage",
+        "kind": "function",
+        "file": "src\\app\\forgot\\page.tsx",
+        "line": 10,
+        "exported": true
+      },
+      {
+        "name": "GaugeChartShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\charts\\gauge\\page.tsx",
+        "line": 14,
+        "exported": true
+      },
+      {
+        "name": "handleSubmit",
+        "kind": "function",
+        "file": "src\\app\\reset\\ResetPasswordForm.tsx",
+        "line": 40,
+        "exported": true
+      },
+      {
+        "name": "handleSubmit",
+        "kind": "function",
+        "file": "src\\app\\forgot\\page.tsx",
+        "line": 18,
+        "exported": true
+      },
+      {
+        "name": "Home",
+        "kind": "function",
+        "file": "src\\app\\page.tsx",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "InputShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\input\\page.tsx",
+        "line": 7,
+        "exported": true
+      },
+      {
+        "name": "ListViewLayoutShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\layouts\\list-view\\page.tsx",
+        "line": 7,
+        "exported": true
+      },
+      {
+        "name": "login",
+        "kind": "function",
+        "file": "src\\hooks\\useAuth.ts",
+        "line": 10,
+        "exported": true
+      },
+      {
+        "name": "loginApi",
+        "kind": "function",
+        "file": "src\\services\\authService.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "MessageBubbleShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\message-bubble\\page.tsx",
+        "line": 6,
+        "exported": true
+      },
+      {
+        "name": "ModeToggle",
+        "kind": "function",
+        "file": "src\\components\\mode-toggle.tsx",
+        "line": 9,
+        "exported": true
+      },
+      {
+        "name": "normalizeApiError",
+        "kind": "function",
+        "file": "src\\lib\\api.ts",
+        "line": 64,
+        "exported": true
+      },
+      {
+        "name": "ProgressShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\progress\\page.tsx",
+        "line": 6,
+        "exported": true
+      },
+      {
+        "name": "requestPasswordRecovery",
+        "kind": "function",
+        "file": "src\\services\\passwordService.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "resetPassword",
+        "kind": "function",
+        "file": "src\\services\\passwordService.ts",
+        "line": 13,
+        "exported": true
+      },
+      {
+        "name": "ResetPasswordForm",
+        "kind": "function",
+        "file": "src\\app\\reset\\ResetPasswordForm.tsx",
+        "line": 12,
+        "exported": true
+      },
+      {
+        "name": "ResetPasswordPage",
+        "kind": "function",
+        "file": "src\\app\\reset\\page.tsx",
+        "line": 5,
+        "exported": true
+      },
+      {
+        "name": "RootLayout",
+        "kind": "function",
+        "file": "src\\app\\layout.tsx",
+        "line": 22,
+        "exported": true
+      },
+      {
+        "name": "SelectShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\select\\page.tsx",
+        "line": 14,
+        "exported": true
+      },
+      {
+        "name": "SeparatorShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\separator\\page.tsx",
+        "line": 5,
+        "exported": true
+      },
+      {
+        "name": "signup",
+        "kind": "function",
+        "file": "src\\hooks\\useAuth.ts",
+        "line": 26,
+        "exported": true
+      },
+      {
+        "name": "signupApi",
+        "kind": "function",
+        "file": "src\\services\\authService.ts",
+        "line": 15,
+        "exported": true
+      },
+      {
+        "name": "StyleguidePage",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\page.tsx",
+        "line": 11,
+        "exported": true
+      },
+      {
+        "name": "TabsShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\tabs\\page.tsx",
+        "line": 6,
+        "exported": true
+      },
+      {
+        "name": "TooltipShowcase",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\tooltip\\page.tsx",
+        "line": 12,
+        "exported": true
+      },
+      {
+        "name": "useAuth",
+        "kind": "function",
+        "file": "src\\hooks\\useAuth.ts",
+        "line": 4,
+        "exported": true
+      },
+      {
+        "name": "useFormFeedback",
+        "kind": "function",
+        "file": "src\\hooks\\useFormFeedback.ts",
+        "line": 11,
+        "exported": true
+      },
+      {
+        "name": "arcPath",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\charts\\gauge\\page.tsx",
+        "line": 5,
+        "exported": false
+      },
+      {
+        "name": "Badge",
+        "kind": "function",
+        "file": "src\\components\\ui\\badge.tsx",
+        "line": 28,
+        "exported": false
+      },
+      {
+        "name": "Checkbox",
+        "kind": "function",
+        "file": "src\\components\\ui\\checkbox.tsx",
+        "line": 9,
+        "exported": false
+      },
+      {
+        "name": "DropdownMenu",
+        "kind": "function",
+        "file": "src\\components\\ui\\dropdown-menu.tsx",
+        "line": 9,
+        "exported": false
+      },
+      {
+        "name": "Input",
+        "kind": "function",
+        "file": "src\\components\\ui\\input.tsx",
+        "line": 5,
+        "exported": false
+      },
+      {
+        "name": "onSubmit",
+        "kind": "function",
+        "file": "src\\app\\(auth)\\signin\\page.tsx",
+        "line": 42,
+        "exported": false
+      },
+      {
+        "name": "onSubmit",
+        "kind": "function",
+        "file": "src\\app\\(auth)\\signup\\page.tsx",
+        "line": 37,
+        "exported": false
+      },
+      {
+        "name": "pointsToPolyline",
+        "kind": "function",
+        "file": "src\\app\\styleguide\\components\\charts\\line\\page.tsx",
+        "line": 12,
+        "exported": false
+      },
+      {
+        "name": "Select",
+        "kind": "function",
+        "file": "src\\components\\ui\\select.tsx",
+        "line": 9,
+        "exported": false
+      },
+      {
+        "name": "SelectGroup",
+        "kind": "function",
+        "file": "src\\components\\ui\\select.tsx",
+        "line": 15,
+        "exported": false
+      },
+      {
+        "name": "SelectItem",
+        "kind": "function",
+        "file": "src\\components\\ui\\select.tsx",
+        "line": 103,
+        "exported": false
+      },
+      {
+        "name": "SelectLabel",
+        "kind": "function",
+        "file": "src\\components\\ui\\select.tsx",
+        "line": 90,
+        "exported": false
+      },
+      {
+        "name": "SelectScrollDownButton",
+        "kind": "function",
+        "file": "src\\components\\ui\\select.tsx",
+        "line": 161,
+        "exported": false
+      }
+    ],
+    "types": [
+      {
+        "name": "SignInValues",
+        "kind": "type",
+        "file": "src\\lib\\validations\\auth.ts",
+        "line": 25,
+        "exported": true
+      },
+      {
+        "name": "SignUpValues",
+        "kind": "type",
+        "file": "src\\lib\\validations\\auth.ts",
+        "line": 26,
+        "exported": true
+      },
+      {
+        "name": "FormFieldContextValue",
+        "kind": "type",
+        "file": "src\\components\\ui\\form.tsx",
+        "line": 12,
+        "exported": false
+      },
+      {
+        "name": "FormItemContextValue",
+        "kind": "type",
+        "file": "src\\components\\ui\\form.tsx",
+        "line": 59,
+        "exported": false
+      }
+    ],
+    "enums": []
+  },
+  "publicAPI": [
+    {
+      "name": "AuthLayout",
+      "kind": "function",
+      "file": "src\\app\\(auth)\\layout.tsx",
+      "line": 3,
+      "exported": true
+    },
+    {
+      "name": "AvatarShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\avatar\\page.tsx",
+      "line": 5,
+      "exported": true
+    },
+    {
+      "name": "BackendStatus",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\BackendStatus.tsx",
+      "line": 4,
+      "exported": true
+    },
+    {
+      "name": "BadgeShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\badge\\page.tsx",
+      "line": 6,
+      "exported": true
+    },
+    {
+      "name": "ButtonShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\button\\page.tsx",
+      "line": 13,
+      "exported": true
+    },
+    {
+      "name": "CheckboxShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\checkbox\\page.tsx",
+      "line": 6,
+      "exported": true
+    },
+    {
+      "name": "cn",
+      "kind": "function",
+      "file": "src\\lib\\utils.ts",
+      "line": 4,
+      "exported": true
+    },
+    {
+      "name": "DropdownMenuShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\dropdown-menu\\page.tsx",
+      "line": 19,
+      "exported": true
+    },
+    {
+      "name": "fetchApi",
+      "kind": "function",
+      "file": "src\\lib\\api.ts",
+      "line": 5,
+      "exported": true
+    },
+    {
+      "name": "focusFirstError",
+      "kind": "function",
+      "file": "src\\app\\reset\\ResetPasswordForm.tsx",
+      "line": 25,
+      "exported": true
+    },
+    {
+      "name": "ForgotPasswordPage",
+      "kind": "function",
+      "file": "src\\app\\forgot\\page.tsx",
+      "line": 10,
+      "exported": true
+    },
+    {
+      "name": "GaugeChartShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\charts\\gauge\\page.tsx",
+      "line": 14,
+      "exported": true
+    },
+    {
+      "name": "handleSubmit",
+      "kind": "function",
+      "file": "src\\app\\reset\\ResetPasswordForm.tsx",
+      "line": 40,
+      "exported": true
+    },
+    {
+      "name": "handleSubmit",
+      "kind": "function",
+      "file": "src\\app\\forgot\\page.tsx",
+      "line": 18,
+      "exported": true
+    },
+    {
+      "name": "Home",
+      "kind": "function",
+      "file": "src\\app\\page.tsx",
+      "line": 3,
+      "exported": true
+    },
+    {
+      "name": "InputShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\input\\page.tsx",
+      "line": 7,
+      "exported": true
+    },
+    {
+      "name": "LabelProps",
+      "kind": "interface",
+      "file": "src\\components\\ui\\label.tsx",
+      "line": 6,
+      "exported": true
+    },
+    {
+      "name": "ListViewLayoutShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\layouts\\list-view\\page.tsx",
+      "line": 7,
+      "exported": true
+    },
+    {
+      "name": "login",
+      "kind": "function",
+      "file": "src\\hooks\\useAuth.ts",
+      "line": 10,
+      "exported": true
+    },
+    {
+      "name": "loginApi",
+      "kind": "function",
+      "file": "src\\services\\authService.ts",
+      "line": 3,
+      "exported": true
+    },
+    {
+      "name": "MessageBubbleShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\message-bubble\\page.tsx",
+      "line": 6,
+      "exported": true
+    },
+    {
+      "name": "ModeToggle",
+      "kind": "function",
+      "file": "src\\components\\mode-toggle.tsx",
+      "line": 9,
+      "exported": true
+    },
+    {
+      "name": "NavItem",
+      "kind": "interface",
+      "file": "src\\app\\styleguide\\navigation.ts",
+      "line": 1,
+      "exported": true
+    },
+    {
+      "name": "NavSection",
+      "kind": "interface",
+      "file": "src\\app\\styleguide\\navigation.ts",
+      "line": 6,
+      "exported": true
+    },
+    {
+      "name": "normalizeApiError",
+      "kind": "function",
+      "file": "src\\lib\\api.ts",
+      "line": 64,
+      "exported": true
+    },
+    {
+      "name": "ProgressShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\progress\\page.tsx",
+      "line": 6,
+      "exported": true
+    },
+    {
+      "name": "requestPasswordRecovery",
+      "kind": "function",
+      "file": "src\\services\\passwordService.ts",
+      "line": 3,
+      "exported": true
+    },
+    {
+      "name": "resetPassword",
+      "kind": "function",
+      "file": "src\\services\\passwordService.ts",
+      "line": 13,
+      "exported": true
+    },
+    {
+      "name": "ResetPasswordForm",
+      "kind": "function",
+      "file": "src\\app\\reset\\ResetPasswordForm.tsx",
+      "line": 12,
+      "exported": true
+    },
+    {
+      "name": "ResetPasswordPage",
+      "kind": "function",
+      "file": "src\\app\\reset\\page.tsx",
+      "line": 5,
+      "exported": true
+    },
+    {
+      "name": "RootLayout",
+      "kind": "function",
+      "file": "src\\app\\layout.tsx",
+      "line": 22,
+      "exported": true
+    },
+    {
+      "name": "SelectShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\select\\page.tsx",
+      "line": 14,
+      "exported": true
+    },
+    {
+      "name": "SeparatorShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\separator\\page.tsx",
+      "line": 5,
+      "exported": true
+    },
+    {
+      "name": "SignInValues",
+      "kind": "type",
+      "file": "src\\lib\\validations\\auth.ts",
+      "line": 25,
+      "exported": true
+    },
+    {
+      "name": "signup",
+      "kind": "function",
+      "file": "src\\hooks\\useAuth.ts",
+      "line": 26,
+      "exported": true
+    },
+    {
+      "name": "signupApi",
+      "kind": "function",
+      "file": "src\\services\\authService.ts",
+      "line": 15,
+      "exported": true
+    },
+    {
+      "name": "SignUpValues",
+      "kind": "type",
+      "file": "src\\lib\\validations\\auth.ts",
+      "line": 26,
+      "exported": true
+    },
+    {
+      "name": "StyleguidePage",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\page.tsx",
+      "line": 11,
+      "exported": true
+    },
+    {
+      "name": "TabsShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\tabs\\page.tsx",
+      "line": 6,
+      "exported": true
+    },
+    {
+      "name": "TooltipShowcase",
+      "kind": "function",
+      "file": "src\\app\\styleguide\\components\\tooltip\\page.tsx",
+      "line": 12,
+      "exported": true
+    },
+    {
+      "name": "useAuth",
+      "kind": "function",
+      "file": "src\\hooks\\useAuth.ts",
+      "line": 4,
+      "exported": true
+    },
+    {
+      "name": "useFormFeedback",
+      "kind": "function",
+      "file": "src\\hooks\\useFormFeedback.ts",
+      "line": 11,
+      "exported": true
+    }
+  ],
+  "dependencies": {
+    "mostImported": [
+      {
+        "file": "D:\\_projects\\clinica_go\\frontend\\src\\app\\globals.css",
+        "importedBy": 1
+      },
+      {
+        "file": "D:\\_projects\\clinica_go\\frontend\\src\\app\\styleguide\\BackendStatus.tsx",
+        "importedBy": 1
+      },
+      {
+        "file": "D:\\_projects\\clinica_go\\frontend\\src\\app\\styleguide\\navigation.ts",
+        "importedBy": 1
+      },
+      {
+        "file": "D:\\_projects\\clinica_go\\frontend\\src\\app\\reset\\ResetPasswordForm.tsx",
+        "importedBy": 1
+      }
+    ]
+  },
+  "stats": {
+    "totalSymbols": 67,
+    "exportedSymbols": 42,
+    "analysisTimeMs": 1100
+  }
+}
