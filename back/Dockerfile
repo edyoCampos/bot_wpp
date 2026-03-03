@@ -33,17 +33,14 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Atualiza pip e instala uv para builds mais rápidos
-RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
-    pip install --upgrade pip setuptools wheel uv
+RUN pip install --upgrade pip setuptools wheel uv
 
 # CRITICO: Copia APENAS arquivos de dependencias primeiro (cache layer)
 COPY pyproject.toml ./
 
 # Instala deps do pyproject.toml (exceto ML: torch, transformers, faster-whisper)
 # IMPORTANTE: openpyxl e reportlab são necessários para export_service.py
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
-    uv pip install --system \
+RUN uv pip install --system \
     alembic bcrypt chromadb email-validator fastapi google-genai google-api-core httpx \
     langchain langchain-google-genai langchain-groq passlib pillow psycopg2-binary pydantic \
     pydantic-settings pyjwt python-dotenv python-multipart redis redis-om \
@@ -51,9 +48,7 @@ RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     gunicorn watchfiles hiredis python-jose cryptography openai pyyaml
 
 # Instala dependências de exportação separadamente (podem ter deps adicionais)
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
-    uv pip install --system openpyxl reportlab
+RUN uv pip install --system openpyxl reportlab
 
 # ============================================================================
 # STAGE 2: ML Dependencies (separado para paralelização)
@@ -72,19 +67,14 @@ RUN apt-get update \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
-    pip install --upgrade pip uv
+RUN pip install --upgrade pip uv
 
 # Instala PyTorch CPU-only (MUITO menor: 858MB → ~200MB)
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
-    uv pip install --system \
+RUN uv pip install --system \
     torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Instala transformers e faster-whisper
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
-    uv pip install --system transformers>=4.57.3 faster-whisper>=1.0.0
+RUN uv pip install --system transformers>=4.57.3 faster-whisper>=1.0.0
 
 # ============================================================================
 # STAGE 3: Runtime - API (imagem final para servidor HTTP)
